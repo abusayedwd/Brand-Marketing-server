@@ -157,6 +157,53 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Diagnostic endpoint to check configuration
+app.get('/diagnostic', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const config = require('./config/config');
+
+    const dbState = mongoose.connection.readyState;
+    const states = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+
+    res.status(200).json({
+      timestamp: new Date().toISOString(),
+      platform: process.env.VERCEL ? 'Vercel' : 'Local',
+      node_version: process.version,
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL: !!process.env.VERCEL,
+        has_mongodb_url: !!process.env.MONGODB_URL,
+        mongodb_url_preview: process.env.MONGODB_URL ? process.env.MONGODB_URL.substring(0, 40) + '...' : 'NOT SET'
+      },
+      config: {
+        has_config_url: !!config?.mongoose?.url,
+        config_url_preview: config?.mongoose?.url ? config.mongoose.url.substring(0, 40) + '...' : 'NOT SET',
+        config_env: config?.env
+      },
+      database: {
+        current_state: states[dbState],
+        is_connected: dbState === 1,
+        connection_details: dbState === 1 ? {
+          host: mongoose.connection.host,
+          name: mongoose.connection.name
+        } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Diagnostic check failed',
+      details: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Test database connection endpoint
 app.get('/test-connection', async (req, res) => {
   try {
