@@ -157,6 +157,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+//testing API is alive
+app.get("/test", (req, res) => {
+  const Ip = "https://sayed8080.sobhoy.com/"
+  let userIP =
+    req.headers["x-real-ip"] ||
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress;
+  res.send({ message: "This is influencer API", Ip });
+});
+
 // Diagnostic endpoint to check configuration
 app.get('/diagnostic', async (req, res) => {
   try {
