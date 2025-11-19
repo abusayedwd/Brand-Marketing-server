@@ -2,7 +2,11 @@ const dotenv = require('dotenv');
 const path = require('path');
 const Joi = require('joi');
 
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Only load .env file in non-production environments
+// In Vercel/production, environment variables are injected directly
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  dotenv.config({ path: path.join(__dirname, '../../.env') });
+}
 
 const envVarsSchema = Joi.object()
   .keys({
@@ -38,9 +42,8 @@ module.exports = {
   mongoose: {
     url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),
     options: {
-      // useCreateIndex: true,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      // Removed deprecated options (useNewUrlParser, useUnifiedTopology)
+      // These are now defaults in Mongoose 6+
     },
   },
   jwt: {
