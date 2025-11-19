@@ -157,6 +157,40 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Test database connection endpoint
+app.get('/test-connection', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const dbState = mongoose.connection.readyState;
+    const states = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+
+    if (dbState === 1) {
+      res.status(200).json({
+        message: 'Database connection successful',
+        state: states[dbState],
+        host: mongoose.connection.host,
+        name: mongoose.connection.name
+      });
+    } else {
+      res.status(500).json({
+        error: 'Database not connected',
+        state: states[dbState],
+        message: 'Database connection is in ' + states[dbState] + ' state'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      error: 'Database connection check failed',
+      details: error.message
+    });
+  }
+});
+
 // API routes
 app.use('/v1', routes);
 

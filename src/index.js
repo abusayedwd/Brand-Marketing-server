@@ -173,10 +173,10 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         });
       }
 
-      // Connect to database with timeout
+      // Connect to database with timeout (5 seconds to stay within Vercel's 10s limit)
       console.log('Connecting to database...');
       const dbTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database connection timeout after 8 seconds')), 8000)
+        setTimeout(() => reject(new Error('Database connection timeout after 5 seconds')), 5000)
       );
 
       await Promise.race([connectToDatabase(), dbTimeout]);
