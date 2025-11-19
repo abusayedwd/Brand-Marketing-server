@@ -1,18 +1,12 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/[...all]"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/api/[...all]"
+      "src": "/(.*)",
+      "dest": "/api/index.js"
     }
   ],
-  "functions": {
-    "api/[...all].js": {
-      "maxDuration": 10
-    }
+  "env": {
+    "NODE_ENV": "production"
   }
 }

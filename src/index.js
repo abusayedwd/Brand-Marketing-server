@@ -167,7 +167,7 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     } catch (error) {
       console.error("Serverless handler error:", error);
       
-      if (!res.headersSent) {
+      if (!res.headersSent) { 
         return res.status(500).json({
           error: "Internal Server Error",
           message: error.message,
