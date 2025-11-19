@@ -130,25 +130,38 @@ async function connectToDatabase() {
 
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   // === Vercel serverless mode ===
-  
+
   module.exports = async (req, res) => {
     try {
       console.log(`${req.method} ${req.url} - Starting serverless request`);
-      
+
       // Set CORS headers for all requests
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      
+
       // Handle OPTIONS requests for CORS preflight
       if (req.method === 'OPTIONS') {
         res.status(200).end();
         return;
       }
-      
-      // Connect to database
-      await connectToDatabase();
-      
+
+      // Quick health check without DB connection
+      if (req.url === '/' || req.url === '/health') {
+        console.log('Health check endpoint - skipping DB connection');
+        const serverless = require("serverless-http");
+        const handler = serverless(app);
+        return await handler(req, res);
+      }
+
+      // Connect to database with timeout
+      console.log('Connecting to database...');
+      const dbTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database connection timeout')), 8000)
+      );
+      await Promise.race([connectToDatabase(), dbTimeout]);
+      console.log('Database connected successfully');
+
       // Import serverless-http here to avoid issues
       const serverless = require("serverless-http");
       const handler = serverless(app, {
@@ -161,18 +174,20 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
           // Add any response modifications here
         }
       });
-      
+
       return await handler(req, res);
-      
+
     } catch (error) {
       console.error("Serverless handler error:", error);
-      
-      if (!res.headersSent) { 
+
+      if (!res.headersSent) {
         return res.status(500).json({
           error: "Internal Server Error",
           message: error.message,
           stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          url: req.url,
+          method: req.method
         });
       }
     }
