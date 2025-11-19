@@ -146,19 +146,39 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         return;
       }
 
-      // Quick health check without DB connection
+      // Quick health check without DB connection - respond immediately
       if (req.url === '/' || req.url === '/health') {
-        console.log('Health check endpoint - skipping DB connection');
-        const serverless = require("serverless-http");
-        const handler = serverless(app);
-        return await handler(req, res);
+        console.log('Health check endpoint - responding immediately');
+        return res.status(200).json({
+          status: 'OK',
+          message: 'API is running on Vercel',
+          timestamp: new Date().toISOString(),
+          platform: 'Vercel Serverless',
+          node_version: process.version,
+          env_check: {
+            has_mongodb_url: !!process.env.MONGODB_URL,
+            has_jwt_secret: !!process.env.JWT_SECRET,
+            node_env: process.env.NODE_ENV
+          }
+        });
+      }
+
+      // Check if required environment variables are set
+      if (!process.env.MONGODB_URL) {
+        console.error('MONGODB_URL is not set!');
+        return res.status(500).json({
+          error: 'Configuration Error',
+          message: 'Database connection string is not configured. Please set MONGODB_URL in Vercel environment variables.',
+          timestamp: new Date().toISOString()
+        });
       }
 
       // Connect to database with timeout
       console.log('Connecting to database...');
       const dbTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database connection timeout')), 8000)
+        setTimeout(() => reject(new Error('Database connection timeout after 8 seconds')), 8000)
       );
+
       await Promise.race([connectToDatabase(), dbTimeout]);
       console.log('Database connected successfully');
 
@@ -187,7 +207,11 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
           stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
           timestamp: new Date().toISOString(),
           url: req.url,
-          method: req.method
+          method: req.method,
+          env_check: {
+            has_mongodb_url: !!process.env.MONGODB_URL,
+            mongodb_url_preview: process.env.MONGODB_URL ? process.env.MONGODB_URL.substring(0, 30) + '...' : 'NOT SET'
+          }
         });
       }
     }
