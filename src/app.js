@@ -169,24 +169,24 @@ app.get('/test-connection', async (req, res) => {
       3: 'disconnecting'
     };
 
-    if (dbState === 1) {
-      res.status(200).json({
-        message: 'Database connection successful',
-        state: states[dbState],
+    // Return immediate status
+    res.status(200).json({
+      current_state: states[dbState],
+      is_connected: dbState === 1,
+      connection_details: dbState === 1 ? {
         host: mongoose.connection.host,
-        name: mongoose.connection.name
-      });
-    } else {
-      res.status(500).json({
-        error: 'Database not connected',
-        state: states[dbState],
-        message: 'Database connection is in ' + states[dbState] + ' state'
-      });
-    }
+        name: mongoose.connection.name,
+        models: Object.keys(mongoose.connection.models)
+      } : null,
+      message: dbState === 1
+        ? 'Database is connected and ready'
+        : 'Database is ' + states[dbState] + '. First request to /v1/* will trigger connection.'
+    });
   } catch (error) {
     res.status(500).json({
       error: 'Database connection check failed',
-      details: error.message
+      details: error.message,
+      stack: error.stack
     });
   }
 });

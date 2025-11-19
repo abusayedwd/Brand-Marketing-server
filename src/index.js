@@ -107,9 +107,9 @@ async function connectToDatabase() {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 1, // Keep connection pool minimal for serverless
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 5000, // Reduced from 10s to 5s
+      socketTimeoutMS: 5000, // Reduced from 10s to 5s
+      connectTimeoutMS: 5000, // Reduced from 10s to 5s
       maxIdleTimeMS: 30000,
       // Add these for better serverless performance
       minPoolSize: 0,
@@ -174,13 +174,26 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
       }
 
       // Connect to database with timeout (5 seconds to stay within Vercel's 10s limit)
-      console.log('Connecting to database...');
+      console.log('Connecting to database...', {
+        url: process.env.MONGODB_URL ? process.env.MONGODB_URL.substring(0, 30) + '...' : 'NOT SET',
+        hasConfig: !!config.mongoose.url
+      });
+
       const dbTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database connection timeout after 5 seconds')), 5000)
+        setTimeout(() => reject(new Error('Database connection timeout after 5 seconds. Check MongoDB Atlas network access settings.')), 5000)
       );
 
-      await Promise.race([connectToDatabase(), dbTimeout]);
-      console.log('Database connected successfully');
+      try {
+        await Promise.race([connectToDatabase(), dbTimeout]);
+        console.log('Database connected successfully');
+      } catch (dbError) {
+        console.error('Database connection error:', {
+          message: dbError.message,
+          code: dbError.code,
+          name: dbError.name
+        });
+        throw dbError;
+      }
 
       // Import serverless-http here to avoid issues
       const serverless = require("serverless-http");
