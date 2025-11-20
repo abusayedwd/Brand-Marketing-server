@@ -164,6 +164,19 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         });
       }
 
+      // Test endpoint - respond immediately without DB
+      if (req.url === '/test') {
+        console.log('Test endpoint - responding immediately');
+        const Ip = "https://sayed8080.sobhoy.com/";
+        let userIP = req.headers["x-real-ip"] || req.headers["x-forwarded-for"] || req.connection?.remoteAddress;
+        return res.status(200).json({
+          message: "This is influencer API",
+          Ip,
+          userIP,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       // Diagnostic endpoint to test DB connection
       if (req.url === '/diagnostic' || req.url === '/test-db') {
         console.log('Diagnostic endpoint called');
