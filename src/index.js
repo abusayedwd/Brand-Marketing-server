@@ -107,9 +107,9 @@ async function connectToDatabase() {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 1, // Keep connection pool minimal for serverless
-      serverSelectionTimeoutMS: 10000, // 10 seconds for initial connection
+      serverSelectionTimeoutMS: 5000, // 5 seconds for Vercel free tier
       socketTimeoutMS: 45000, // 45 seconds for socket operations
-      connectTimeoutMS: 10000, // 10 seconds for connection
+      connectTimeoutMS: 5000, // 5 seconds for connection
       maxIdleTimeMS: 60000, // 60 seconds idle time
       minPoolSize: 0,
       heartbeatFrequencyMS: 30000,
@@ -164,6 +164,31 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         });
       }
 
+      // Diagnostic endpoint to test DB connection
+      if (req.url === '/diagnostic' || req.url === '/test-db') {
+        console.log('Diagnostic endpoint called');
+        try {
+          await connectToDatabase();
+          const mongoose = require('mongoose');
+          return res.status(200).json({
+            status: 'SUCCESS',
+            message: 'Database connected successfully',
+            db_state: mongoose.connection.readyState === 1 ? 'connected' : 'not connected',
+            db_name: mongoose.connection.name,
+            db_host: mongoose.connection.host,
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          return res.status(500).json({
+            status: 'FAILED',
+            message: 'Database connection failed',
+            error: error.message,
+            hint: 'Check MongoDB Atlas Network Access - must allow 0.0.0.0/0 for Vercel',
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+
       // Check if required environment variables are set
       if (!process.env.MONGODB_URL) {
         console.error('MONGODB_URL is not set!');
@@ -174,14 +199,14 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         });
       }
 
-      // Connect to database with timeout (10 seconds - sufficient for cold starts)
+      // Connect to database with timeout (5 seconds for Vercel free tier - 10s total limit)
       console.log('Connecting to database...', {
         url: process.env.MONGODB_URL ? process.env.MONGODB_URL.substring(0, 30) + '...' : 'NOT SET',
         hasConfig: !!config.mongoose.url
       });
 
       const dbTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database connection timeout after 10 seconds. Check MongoDB Atlas network access settings and allow 0.0.0.0/0 for Vercel.')), 10000)
+        setTimeout(() => reject(new Error('Database connection timeout after 5 seconds. Check MongoDB Atlas network access settings and allow 0.0.0.0/0 for Vercel.')), 5000)
       );
 
       try {
