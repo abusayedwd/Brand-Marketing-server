@@ -134,86 +134,16 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
 
   // Create serverless handler once, outside the request handler
   const serverless = require("serverless-http");
-  const handler = serverless(app, {
-    request: function(request, event, context) {
-      request.context = context;
-      request.event = event;
-    }
-  });
+  const handler = serverless(app);
 
   module.exports = async (req, res) => {
     try {
       console.log(`${req.method} ${req.url} - Starting serverless request`);
 
-      // Set CORS headers for all requests
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-      // Handle OPTIONS requests for CORS preflight
-      if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-      }
-
-      // Quick health check without DB connection - respond immediately
-      if (req.url === '/' || req.url === '/health') {
-        console.log('Health check endpoint - responding immediately');
-        return res.status(200).json({
-          status: 'OK',
-          message: 'API is running on Vercel',
-          timestamp: new Date().toISOString(),
-          platform: 'Vercel Serverless',
-          node_version: process.version,
-          env_check: {
-            has_mongodb_url: !!process.env.MONGODB_URL,
-            has_jwt_secret: !!process.env.JWT_SECRET,
-            node_env: process.env.NODE_ENV
-          }
-        });
-      }
-
-      // Test endpoint - respond immediately without DB
-      if (req.url === '/test') {
-        console.log('Test endpoint - responding immediately');
-        const Ip = "https://sayed8080.sobhoy.com/";
-        let userIP = req.headers["x-real-ip"] || req.headers["x-forwarded-for"] || req.connection?.remoteAddress;
-        return res.status(200).json({
-          message: "This is influencer API",
-          Ip,
-          userIP,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // Diagnostic endpoint to test DB connection
-      if (req.url === '/diagnostic' || req.url === '/test-db') {
-        console.log('Diagnostic endpoint called');
-        try {
-          await connectToDatabase();
-          const mongoose = require('mongoose');
-          return res.status(200).json({
-            status: 'SUCCESS',
-            message: 'Database connected successfully',
-            db_state: mongoose.connection.readyState === 1 ? 'connected' : 'not connected',
-            db_name: mongoose.connection.name,
-            db_host: mongoose.connection.host,
-            timestamp: new Date().toISOString()
-          });
-        } catch (error) {
-          return res.status(500).json({
-            status: 'FAILED',
-            message: 'Database connection failed',
-            error: error.message,
-            hint: 'Check MongoDB Atlas Network Access - must allow 0.0.0.0/0 for Vercel',
-            timestamp: new Date().toISOString()
-          });
-        }
-      }
-
-      // Connect to database for routes that need it (not /test, /diagnostic, etc)
-      // Only connect if the route is under /v1 (API routes that need DB)
-      const needsDatabase = req.url.startsWith('/v1/');
+      // Connect to database for ALL requests (except special endpoints)
+      // This ensures DB is ready before Express handles any /v1/* routes
+      const skipDBRoutes = ['/', '/health', '/test', '/diagnostic', '/test-db', '/favicon.ico'];
+      const needsDatabase = !skipDBRoutes.includes(req.url) && !req.url.includes('/favicon');
 
       if (needsDatabase) {
         // Check if required environment variables are set
@@ -221,38 +151,32 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
           console.error('MONGODB_URL is not set!');
           return res.status(500).json({
             error: 'Configuration Error',
-            message: 'Database connection string is not configured. Please set MONGODB_URL in Vercel environment variables.',
+            message: 'Database connection string is not configured.',
             timestamp: new Date().toISOString()
           });
         }
 
-        // Connect to database with timeout (5 seconds for Vercel free tier - 10s total limit)
+        // Connect to database
         console.log('Connecting to database for', req.url);
-
-        const dbTimeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Database connection timeout after 5 seconds. Check MongoDB Atlas network access settings and allow 0.0.0.0/0 for Vercel.')), 5000)
-        );
-
         try {
+          const dbTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Database timeout')), 5000)
+          );
           await Promise.race([connectToDatabase(), dbTimeout]);
-          console.log('Database connected successfully for', req.url);
+          console.log('Database connected for', req.url);
         } catch (dbError) {
-          console.error('Database connection error:', {
-            message: dbError.message,
-            code: dbError.code,
-            name: dbError.name
-          });
+          console.error('Database connection error:', dbError.message);
           return res.status(500).json({
             error: 'Database Connection Failed',
             message: dbError.message,
-            hint: 'Check MongoDB Atlas Network Access - must allow 0.0.0.0/0 for Vercel',
             timestamp: new Date().toISOString()
           });
         }
       }
 
-      // Pass request to Express via serverless-http
-      console.log('Passing request to Express:', req.method, req.url);
+      // Pass ALL requests to Express via serverless-http
+      // Express will handle routing, including /, /health, /test, /v1/*, etc.
+      console.log('Passing to Express:', req.method, req.url);
       return await handler(req, res);
 
     } catch (error) {
