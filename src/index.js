@@ -131,10 +131,14 @@ async function connectToDatabase() {
 
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   // === Vercel serverless mode ===
+  console.log('Initializing serverless mode...');
 
   // Create serverless handler once, outside the request handler
   const serverless = require("serverless-http");
+
+  console.log('Creating serverless handler for app...');
   const handler = serverless(app);
+  console.log('Serverless handler created successfully');
 
   module.exports = async (req, res) => {
     try {
