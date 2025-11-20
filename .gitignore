@@ -16,3 +16,4 @@ app.log*
 /dist
 
 .vercel
+now.json
