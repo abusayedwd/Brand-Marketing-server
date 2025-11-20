@@ -131,60 +131,43 @@ async function connectToDatabase() {
 
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   // === Vercel serverless mode ===
-  console.log('Initializing serverless mode...');
-
-  // Create serverless handler once, outside the request handler
-  const serverless = require("serverless-http");
-
-  console.log('Creating serverless handler for app...');
-  const handler = serverless(app);
-  console.log('Serverless handler created successfully');
 
   module.exports = async (req, res) => {
     try {
-      console.log(`${req.method} ${req.url} - Starting serverless request`);
+      console.log(`${req.method} ${req.url} - Starting`);
 
-      // Connect to database for ALL requests (except special endpoints)
-      // This ensures DB is ready before Express handles any /v1/* routes
-      const skipDBRoutes = ['/', '/health', '/test', '/diagnostic', '/test-db', '/favicon.ico'];
-      const needsDatabase = !skipDBRoutes.includes(req.url) && !req.url.includes('/favicon');
-
-      if (needsDatabase) {
-        // Check if required environment variables are set
+      // Connect to database for /v1/* routes only
+      if (req.url.startsWith('/v1/')) {
         if (!process.env.MONGODB_URL) {
-          console.error('MONGODB_URL is not set!');
           return res.status(500).json({
-            error: 'Configuration Error',
-            message: 'Database connection string is not configured.',
-            timestamp: new Date().toISOString()
+            error: 'MONGODB_URL not configured'
           });
         }
 
-        // Connect to database
-        console.log('Connecting to database for', req.url);
+        console.log('Connecting to DB for', req.url);
         try {
           const dbTimeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Database timeout')), 5000)
+            setTimeout(() => reject(new Error('DB timeout')), 5000)
           );
           await Promise.race([connectToDatabase(), dbTimeout]);
-          console.log('Database connected for', req.url);
+          console.log('DB connected');
         } catch (dbError) {
-          console.error('Database connection error:', dbError.message);
+          console.error('DB error:', dbError.message);
           return res.status(500).json({
-            error: 'Database Connection Failed',
-            message: dbError.message,
-            timestamp: new Date().toISOString()
+            error: 'Database connection failed',
+            message: dbError.message
           });
         }
       }
 
-      // Pass ALL requests to Express via serverless-http
-      // Express will handle routing, including /, /health, /test, /v1/*, etc.
+      // Create handler and pass request to Express
+      const serverless = require("serverless-http");
+      const handler = serverless(app);
       console.log('Passing to Express:', req.method, req.url);
       return await handler(req, res);
 
     } catch (error) {
-      console.error("Serverless handler error:", error);
+      console.error("Error:", error.message);
 
       if (!res.headersSent) {
         return res.status(500).json({
