@@ -107,13 +107,14 @@ async function connectToDatabase() {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 1, // Keep connection pool minimal for serverless
-      serverSelectionTimeoutMS: 5000, // Reduced from 10s to 5s
-      socketTimeoutMS: 5000, // Reduced from 10s to 5s
-      connectTimeoutMS: 5000, // Reduced from 10s to 5s
-      maxIdleTimeMS: 30000,
-      // Add these for better serverless performance
+      serverSelectionTimeoutMS: 10000, // 10 seconds for initial connection
+      socketTimeoutMS: 45000, // 45 seconds for socket operations
+      connectTimeoutMS: 10000, // 10 seconds for connection
+      maxIdleTimeMS: 60000, // 60 seconds idle time
       minPoolSize: 0,
       heartbeatFrequencyMS: 30000,
+      retryWrites: true,
+      retryReads: true,
     };
 
     const db = await mongoose.connect(config.mongoose.url, opts);
@@ -173,14 +174,14 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         });
       }
 
-      // Connect to database with timeout (5 seconds to stay within Vercel's 10s limit)
+      // Connect to database with timeout (10 seconds - sufficient for cold starts)
       console.log('Connecting to database...', {
         url: process.env.MONGODB_URL ? process.env.MONGODB_URL.substring(0, 30) + '...' : 'NOT SET',
         hasConfig: !!config.mongoose.url
       });
 
       const dbTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database connection timeout after 5 seconds. Check MongoDB Atlas network access settings.')), 5000)
+        setTimeout(() => reject(new Error('Database connection timeout after 10 seconds. Check MongoDB Atlas network access settings and allow 0.0.0.0/0 for Vercel.')), 10000)
       );
 
       try {
