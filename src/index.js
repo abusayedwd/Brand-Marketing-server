@@ -189,36 +189,44 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         }
       }
 
-      // Check if required environment variables are set
-      if (!process.env.MONGODB_URL) {
-        console.error('MONGODB_URL is not set!');
-        return res.status(500).json({
-          error: 'Configuration Error',
-          message: 'Database connection string is not configured. Please set MONGODB_URL in Vercel environment variables.',
-          timestamp: new Date().toISOString()
-        });
-      }
+      // Connect to database for routes that need it (not /test, /diagnostic, etc)
+      // Only connect if the route is under /v1 (API routes that need DB)
+      const needsDatabase = req.url.startsWith('/v1/');
 
-      // Connect to database with timeout (5 seconds for Vercel free tier - 10s total limit)
-      console.log('Connecting to database...', {
-        url: process.env.MONGODB_URL ? process.env.MONGODB_URL.substring(0, 30) + '...' : 'NOT SET',
-        hasConfig: !!config.mongoose.url
-      });
+      if (needsDatabase) {
+        // Check if required environment variables are set
+        if (!process.env.MONGODB_URL) {
+          console.error('MONGODB_URL is not set!');
+          return res.status(500).json({
+            error: 'Configuration Error',
+            message: 'Database connection string is not configured. Please set MONGODB_URL in Vercel environment variables.',
+            timestamp: new Date().toISOString()
+          });
+        }
 
-      const dbTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database connection timeout after 5 seconds. Check MongoDB Atlas network access settings and allow 0.0.0.0/0 for Vercel.')), 5000)
-      );
+        // Connect to database with timeout (5 seconds for Vercel free tier - 10s total limit)
+        console.log('Connecting to database for', req.url);
 
-      try {
-        await Promise.race([connectToDatabase(), dbTimeout]);
-        console.log('Database connected successfully');
-      } catch (dbError) {
-        console.error('Database connection error:', {
-          message: dbError.message,
-          code: dbError.code,
-          name: dbError.name
-        });
-        throw dbError;
+        const dbTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database connection timeout after 5 seconds. Check MongoDB Atlas network access settings and allow 0.0.0.0/0 for Vercel.')), 5000)
+        );
+
+        try {
+          await Promise.race([connectToDatabase(), dbTimeout]);
+          console.log('Database connected successfully');
+        } catch (dbError) {
+          console.error('Database connection error:', {
+            message: dbError.message,
+            code: dbError.code,
+            name: dbError.name
+          });
+          return res.status(500).json({
+            error: 'Database Connection Failed',
+            message: dbError.message,
+            hint: 'Check MongoDB Atlas Network Access - must allow 0.0.0.0/0 for Vercel',
+            timestamp: new Date().toISOString()
+          });
+        }
       }
 
       // Import serverless-http here to avoid issues
