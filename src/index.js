@@ -132,6 +132,15 @@ async function connectToDatabase() {
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   // === Vercel serverless mode ===
 
+  // Create serverless handler once, outside the request handler
+  const serverless = require("serverless-http");
+  const handler = serverless(app, {
+    request: function(request, event, context) {
+      request.context = context;
+      request.event = event;
+    }
+  });
+
   module.exports = async (req, res) => {
     try {
       console.log(`${req.method} ${req.url} - Starting serverless request`);
@@ -226,7 +235,7 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
 
         try {
           await Promise.race([connectToDatabase(), dbTimeout]);
-          console.log('Database connected successfully');
+          console.log('Database connected successfully for', req.url);
         } catch (dbError) {
           console.error('Database connection error:', {
             message: dbError.message,
@@ -242,19 +251,8 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         }
       }
 
-      // Import serverless-http here to avoid issues
-      const serverless = require("serverless-http");
-      const handler = serverless(app, {
-        request: function(request, event, context) {
-          // Add any request modifications here
-          request.context = context;
-          request.event = event;
-        },
-        response: function(response, event, context) {
-          // Add any response modifications here
-        }
-      });
-
+      // Pass request to Express via serverless-http
+      console.log('Passing request to Express:', req.method, req.url);
       return await handler(req, res);
 
     } catch (error) {
