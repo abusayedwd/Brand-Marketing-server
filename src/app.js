@@ -247,7 +247,7 @@ app.get('/diagnostic', async (req, res) => {
       details: error.message,
       stack: error.stack
     });
-  }
+  } 
 });
 
 // Test database connection endpoint
