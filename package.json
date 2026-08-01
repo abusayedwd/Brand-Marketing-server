@@ -2,10 +2,10 @@
   "name": "influencer-brand-server",
   "version": "1.0.0",
   "description": "influencer-brand-server",
-  "main": "src/index.js",
+  "main": "src/main.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node src/main.js",
+    "dev": "nodemon src/main.js",
     "build": "webpack --mode=production",
     "seed": "node src/utils/seeder.js",
     "test": "echo \"Error: no test specified\" && exit 1",

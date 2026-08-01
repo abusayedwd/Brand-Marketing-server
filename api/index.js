@@ -3,7 +3,7 @@ console.log('API/index.js loading...');
 
 try {
   console.log('Requiring src/index...');
-  module.exports = require('../src/index');
+  module.exports = require('../src/main');
   console.log('src/index loaded successfully');
 } catch (error) {
   console.error('FATAL ERROR loading index:', error);
