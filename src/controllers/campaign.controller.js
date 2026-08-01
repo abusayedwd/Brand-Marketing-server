@@ -83,6 +83,16 @@ const DraftApprove = require("../models/draft.model");
  
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
 const endpointSecret = process.env.CREATE_CAMPAIGN_WEBHOOK_SECRET;
+const {
+  STRIPE_PROJECT,
+  FRONTEND_URL,
+  getStripeRawBody,
+  toStripeMetadata,
+  parsePlatforms,
+} = require("../utils/stripeHelpers");
+const { fulfillCampaignPayment, createCheckoutSessionForCampaign } = require("../services/campaignPayment.service");
+
+const stripeSessionRetrieveOptions = { expand: ['payment_intent'] };
 
 const createCampaign = catchAsync(async (req, res) => {
   const { budget, campaignName, description, endDate, influencerCount, selectedPlatforms, startDate, totalAmount } = req.body; // Include imageUrl
@@ -91,18 +101,16 @@ const createCampaign = catchAsync(async (req, res) => {
   
   // const imageUrl = "/uploads/users/" + image;
 
-      const image = {};
+  const image = {};
   if (req.file) {
     image.url = "/uploads/users/" + req.file.filename;
     image.path = req.file.path;
-  }
-  if (req.file) {
     req.body.image = image;
   }
-    // Ensure file is uploaded
-    if (!image) {
-      return res.status(400).json({ message: 'Image file is required' });
-    }
+
+  if (!req.file) {
+    return res.status(400).json({ message: "Image file is required" });
+  }
 
 
   const items = [
@@ -114,6 +122,20 @@ const createCampaign = catchAsync(async (req, res) => {
 
   // Convert totalAmount to cents
   const amount = Math.round(totalAmount * 100); // Stripe expects price in cents
+
+  const pendingCampaign = await Campaign.create({
+    brandId,
+    campaignName,
+    description: description || '',
+    budget: Number(budget),
+    totalAmount: Number(totalAmount),
+    influencerCount: Number(influencerCount),
+    selectedPlatforms: parsePlatforms(selectedPlatforms),
+    startDate,
+    endDate,
+    image: image.url,
+    status: 'pending',
+  });
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
@@ -129,33 +151,38 @@ const createCampaign = catchAsync(async (req, res) => {
       quantity: item.quantity,
     })),
     mode: "payment",
-    success_url: `https://your-website.com/campaign-success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `https://your-website.com/campaign-cancelled`,
+    success_url: `${FRONTEND_URL}/dashboard/campaigns?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${FRONTEND_URL}/dashboard/campaigns?payment=cancelled`,
     customer_email: req?.user?.email,
-    metadata: {
+    metadata: toStripeMetadata({
       brandId,
       budget,
       campaignName,
       totalAmount,
-      project: "your-project-name",
+      project: STRIPE_PROJECT,
       startDate,
       endDate,
-      description, // Pass description in metadata
+      description,
       influencerCount,
-      selectedPlatforms,
-      image:image.url,
-    },
+      selectedPlatforms: parsePlatforms(selectedPlatforms),
+      image: image.url,
+      campaignId: pendingCampaign._id.toString(),
+    }),
   });
+
+  pendingCampaign.stripeSessionId = session.id;
+  await pendingCampaign.save();
 
   res.status(httpStatus.CREATED).json({
     status: "success",
     sessionId: session.id,
-    url: session.url, // Send this URL for payment
+    url: session.url,
+    campaignId: pendingCampaign._id,
   });
 });
 
 const stripeCampaignWebhook = async (req, res) => {
-  console.log("Webhook endpoint hit!");
+  console.log("Campaign webhook endpoint hit!");
 
   const sig = req.headers["stripe-signature"];
   let event;
@@ -166,7 +193,7 @@ const stripeCampaignWebhook = async (req, res) => {
       return res.status(400).json({ error: "Webhook secret not configured" });
     }
 
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(getStripeRawBody(req), sig, endpointSecret);
     console.log("Webhook verified.");
 
     const data = event.data.object;
@@ -178,65 +205,103 @@ const stripeCampaignWebhook = async (req, res) => {
       const session = data;
       console.log("Payment successfully completed. Session details:", session);
 
-      // Check if the event is for the correct project
-      if (session.metadata && session.metadata.project !== "your-project-name") {
-        console.log("Event not for this project, ignoring...");
-        return res.status(200).json({ received: true, ignored: true });
-      }
-
-      const { brandId, budget, campaignName, totalAmount, startDate, endDate, image, description, influencerCount, selectedPlatforms } = session?.metadata;
-  
-      // Convert startDate and endDate from string to Date objects for proper comparison
-      const currentDate = new Date();
-      const parsedStartDate = new Date(startDate);  // Convert startDate string to Date object
-      const parsedEndDate = new Date(endDate);      // Convert endDate string to Date object
-
-      console.log("Parsed Start Date: ", parsedStartDate);
-      console.log("Parsed End Date: ", parsedEndDate);
-
-      // Determine the status based on start and end dates
-      let status = "upComming"; // Default status
-      if (currentDate >= parsedStartDate && currentDate <= parsedEndDate) {
-        status = "active";
-      } else if (currentDate > parsedEndDate) {
-        status = "completed";
-      }
-
-      // Create the campaign in the database with the correct status
-      const campaignData = {
-        budget, // Convert back to original amount (in EUR, USD, etc.)
-        brandId,
-        campaignName,
-        description,
-        endDate: parsedEndDate,
-        influencerCount,
-        selectedPlatforms,
-        startDate: parsedStartDate,
-        totalAmount, 
-        image,  // Use the image URL from metadata
-        status, // Set the correct status here
-      };
-
-      // Create and save the campaign to the database
-      const campaign = await campaignService.createCampaign(campaignData);
-      console.log(campaign)
-      // Ensure campaign status is updated before saving
-      await campaign.save();
-
-      await transactionController.createTransactionForCampaign(campaign, "Stripe", session);
-
-      console.log("Campaign and transaction created successfully:", campaign);
-
-      // Respond to acknowledge receipt of the event
-      res.status(200).json({ received: true, eventType });
-    } else {
-      res.status(200).json({ received: true, ignored: true });
+      const result = await fulfillCampaignPayment(session);
+      console.log("Campaign payment fulfillment result:", result);
+      return res.status(200).json({ received: true, eventType, ...result });
     }
+
+    return res.status(200).json({ received: true, ignored: true, eventType });
   } catch (error) {
     console.error("Error processing webhook event:", error);
-    res.status(200).json({ error: "Internal server error", received: true });
+    return res.status(400).json({ error: error.message });
   }
 };
+
+const verifyCampaignPayment = catchAsync(async (req, res) => {
+  const { sessionId, campaignId } = req.body;
+
+  if (!sessionId && !campaignId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Session ID or campaign ID is required");
+  }
+
+  let session;
+
+  if (sessionId) {
+    session = await stripe.checkout.sessions.retrieve(sessionId, stripeSessionRetrieveOptions);
+  } else {
+    const pendingCampaign = await Campaign.findOne({
+      _id: campaignId,
+      brandId: req.user.id,
+      status: "pending",
+    });
+
+    if (!pendingCampaign?.stripeSessionId) {
+      throw new ApiError(httpStatus.NOT_FOUND, "No pending payment found for this campaign");
+    }
+
+    session = await stripe.checkout.sessions.retrieve(
+      pendingCampaign.stripeSessionId,
+      stripeSessionRetrieveOptions
+    );
+  }
+
+  if (String(session.metadata?.brandId) !== String(req.user.id)) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Not authorized for this payment session");
+  }
+
+  const result = await fulfillCampaignPayment(session);
+
+  res.status(httpStatus.OK).json(
+    response({
+      message: result.alreadyFulfilled
+        ? "Campaign already activated"
+        : result.ignored
+        ? "Payment not completed yet"
+        : "Campaign activated successfully",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: result,
+    })
+  );
+});
+
+const resumeCampaignPayment = catchAsync(async (req, res) => {
+  const { campaignId } = req.params;
+
+  const campaign = await Campaign.findOne({
+    _id: campaignId,
+    brandId: req.user.id,
+    status: "pending",
+  });
+
+  if (!campaign) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Pending campaign not found");
+  }
+
+  if (campaign.stripeSessionId) {
+    const existingSession = await stripe.checkout.sessions.retrieve(campaign.stripeSessionId);
+
+    if (existingSession.status === "open" && existingSession.url) {
+      return res.status(httpStatus.OK).json({
+        status: "success",
+        sessionId: existingSession.id,
+        url: existingSession.url,
+        message: "Continue your Stripe checkout to complete payment.",
+      });
+    }
+  }
+
+  const session = await createCheckoutSessionForCampaign(campaign, req.user.email);
+  campaign.stripeSessionId = session.id;
+  await campaign.save();
+
+  res.status(httpStatus.OK).json({
+    status: "success",
+    sessionId: session.id,
+    url: session.url,
+    message: "New Stripe checkout session created.",
+  });
+});
 
  
  
@@ -436,6 +501,27 @@ const getAcceptedCampaignsForInfluencer = catchAsync(async (req, res) => {
 
 
 
+const getMyCompletedCampaigns = catchAsync(async (req, res) => {
+  const influencerId = req.user.id;
+  const filter = pick(req.query, ['campaignName', 'status', 'budget', 'brandId']);
+  const options = pick(req.query, ['sortBy', 'limit', 'page']);
+
+  const campaigns = await campaignService.getCompletedCampaignsForInfluencer(
+    influencerId,
+    filter,
+    options
+  );
+
+  res.status(200).json(
+    response({
+      message: 'Completed campaigns retrieved successfully',
+      status: 'OK',
+      statusCode: httpStatus.OK,
+      data: campaigns,
+    })
+  );
+});
+
 // Brand accepts an influencer
 const acceptInfluencer = catchAsync(async (req, res) => {
  
@@ -544,8 +630,11 @@ module.exports = {
   getAllCampaigns,
   getMyCampaigns,
   stripeCampaignWebhook,
+  verifyCampaignPayment,
+  resumeCampaignPayment,
   getUpcomingCampaignsForInfluecer,
   getInterestedCampaignsForInfluencer,
   getAcceptedCampaignsForInfluencer,
+  getMyCompletedCampaigns,
   getMydraft
 };

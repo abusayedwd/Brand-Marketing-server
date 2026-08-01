@@ -85,6 +85,10 @@ router.post("/createCampaign", auth('brand'),
     convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
     campaignController.createCampaign);
 
+router.post('/verifyCampaignPayment', auth('brand'), campaignController.verifyCampaignPayment);
+
+router.post('/resumePayment/:campaignId', auth('brand'), campaignController.resumeCampaignPayment);
+
 // Public (Get) Routes
 router.get('/getAllCampaigns', auth('common'), campaignController.getAllCampaigns);
 router.get('/getMy-Campaigns', auth('common'), campaignController.getMyCampaigns);
@@ -98,6 +102,9 @@ campaignController.getInterestedCampaignsForInfluencer);
 
 router.get('/getAcceptedCampaignsForInfluencer', auth('influencer'), 
 campaignController.getAcceptedCampaignsForInfluencer);
+
+router.get('/getMyCompletedCampaigns', auth('influencer'),
+campaignController.getMyCompletedCampaigns);
 
 router.get('/getMydraft', auth('influencer'), campaignController.getMydraft);
 

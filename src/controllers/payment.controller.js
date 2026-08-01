@@ -5,6 +5,10 @@ const { User } = require("../models");
 const PlanSubscription = require("../models/payment.model");
 const cron = require("node-cron");
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const { STRIPE_PROJECT, FRONTEND_URL, getStripeRawBody } = require("../utils/stripeHelpers");
+const { fulfillSubscriptionPayment } = require("../services/subscriptionPayment.service");
+
+const stripeSessionRetrieveOptions = { expand: ['payment_intent'] };
 
 const catchAsync = require("../utils/catchAsync");
 const { subscriptionService } = require("../services");
@@ -50,17 +54,15 @@ line_items: items.map((item) => ({
   quantity: item.quantity,
 })),
     mode: "payment",
-    // IMPORTANT: Use your actual domain, not localhost IP for production
-    success_url: `https://sayed3000.sobhoy.com?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `https://sayed3000.sobhoy.com/pricing`,
+    success_url: `${FRONTEND_URL}/pricing?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${FRONTEND_URL}/pricing?payment=cancelled`,
     customer_email: req?.user?.email,
     metadata: {
-      userId: userId.toString(), // Ensure it's a string
+      userId: userId.toString(),
       planName,
-      planPrice: amount.toString(), // Ensure it's a string
+      planPrice: amount.toString(),
       duration: duration.toString(),
-      // Add a unique identifier for this project to distinguish from other projects
-      project: "your-project-name" // Replace with your actual project name
+      project: STRIPE_PROJECT,
     },
   });
 
@@ -224,7 +226,7 @@ line_items: items.map((item) => ({
 
 
 const stripeWebhook = async (req, res) => {
-  console.log("Webhook endpoint hit!");
+  console.log("Subscription webhook endpoint hit!");
 
   const sig = req.headers["stripe-signature"];
   let event;
@@ -235,104 +237,60 @@ const stripeWebhook = async (req, res) => {
       return res.status(400).json({ error: "Webhook secret not configured" });
     }
 
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(getStripeRawBody(req), sig, endpointSecret);
     console.log("Webhook verified.");
 
     const data = event.data.object;
     const eventType = event.type;
     console.log(`Received event type: ${eventType}`);
 
-    // Process checkout.session.completed event
     if (eventType === "checkout.session.completed") {
       const session = data;
-      console.log("Payment successfully completed. Session details:", session);
+      console.log("Subscription payment completed. Session:", session.id);
 
-      // Check if the event is for the correct project
-      if (session.metadata && session.metadata.project !== "your-project-name") {
-        console.log("Event not for this project, ignoring...");
-        return res.status(200).json({ received: true, ignored: true });
-      }
-
-      const { userId, planName, duration } = session.metadata;
-
-      // Validate userId and planName
-      if (!userId || !planName) {
-        console.error("Missing required metadata in session:", session.metadata);
-        return res.status(400).json({ error: "Missing metadata" });
-      }
-
-      // Check if the userId is valid
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        console.error("Invalid userId in metadata:", userId);
-        return res.status(400).json({ error: "Invalid userId" });
-      }
-            // Calculate expiration date (2 minutes from now)
-      // const expirationDate = new Date();
-      // expirationDate.setMinutes(expirationDate.getMinutes() + 2); // Add 2 minutes
-
-      // Calculate expiration date (1 month from now)
-      const expirationDate = new Date();
-      expirationDate.setMonth(expirationDate.getMonth() + 1); // Add 1 month
-
-      // Create subscription record
-      const updatedSubscription = await PlanSubscription.findOneAndUpdate(
-        { stripeSessionId: session.id }, // Find the plan subscription by the session ID
-        {
-          userId,
-          planName,
-          price: session.amount_total / 100, // Assuming amount is in cents
-          duration,
-          status: "active",
-          stripeSessionId: session.id,
-          transactionId: session.payment_intent,
-          expirationDate, // Add expiration date
-        },
-        { new: true, upsert: true } // Return the updated or newly created record
-      );
-
-      if (!updatedSubscription) {
-        console.error("Failed to create or update subscription for session ID:", session.id);
-        return res.status(500).json({ error: "Failed to create or update subscription" });
-      }
-
-      console.log("New subscription created:", updatedSubscription);
-
-      // Update the user with the subscription reference
-      const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        {
-          isSubscribe: true,
-          planName,
-          subscriptionDate: new Date(),
-          subscriptionId: updatedSubscription._id, // Add reference to subscription
-        },
-        { new: true }
-      );
-
-      if (!updatedUser) {
-        console.error("User not found for ID:", userId);
-        return res.status(404).json({ error: "User not found" });
-      } else {
-        console.log("User subscription status updated:", updatedUser);
-      }
-
-      // Respond to acknowledge receipt of the event
-      res.status(200).json({ received: true, eventType });
+      const result = await fulfillSubscriptionPayment(session);
+      console.log("Subscription fulfillment result:", result);
+      return res.status(200).json({ received: true, eventType, ...result });
     }
 
-    // Handle other events like payment_intent.payment_failed if necessary
-    else if (eventType === "payment_intent.payment_failed") {
+    if (eventType === "payment_intent.payment_failed") {
       console.log("Payment failed:", data.id);
-      // Handle failed payment logic here
-      res.status(200).json({ received: true, eventType });
+      return res.status(200).json({ received: true, eventType });
     }
 
+    return res.status(200).json({ received: true, ignored: true, eventType });
   } catch (error) {
     console.error("Error processing webhook event:", error);
-    // Always respond with 200 to prevent Stripe from retrying
-    res.status(200).json({ error: "Internal server error", received: true });
+    return res.status(400).json({ error: error.message });
   }
 };
+
+const verifySubscriptionPayment = catchAsync(async (req, res) => {
+  const { sessionId } = req.body;
+
+  if (!sessionId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Session ID is required");
+  }
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId, stripeSessionRetrieveOptions);
+
+  if (String(session.metadata?.userId) !== String(req.user.id)) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Not authorized for this payment session");
+  }
+
+  const result = await fulfillSubscriptionPayment(session);
+
+  res.status(httpStatus.OK).json(
+    response({
+      message: result.ignored
+        ? "Payment not completed yet"
+        : "Subscription activated successfully",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: result,
+    })
+  );
+});
 
 
 
@@ -455,7 +413,8 @@ const getAllSubscriptions = catchAsync(async (req, res) => {
 
 module.exports = {
   createPlanPayment,
-  stripeWebhook ,
+  stripeWebhook,
+  verifySubscriptionPayment,
   getAllSubscriptions,
   getMySubscriptions,
   getSubscriptionById

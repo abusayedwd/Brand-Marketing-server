@@ -1,20 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const bodyParser = require('body-parser');
 const auth = require('../../middlewares/auth');
-const { subscriptionController, campaignController } = require('../../controllers');
+const { subscriptionController } = require('../../controllers');
 const transactionController = require("../../controllers/transaction.controller");
 const { dashboredBar, influencerStatus } = require('../../controllers/dashboardStatus.controller');
-// CRITICAL: Webhook route must be defined BEFORE any global JSON middleware
-router.post('/webhook-subscription',
-  bodyParser.raw({ type: 'application/json' }),  // Ensure that raw body is passed to the webhook
-  subscriptionController.stripeWebhook
-);
 
-router.post('/webhook-createCampaign',
-  bodyParser.raw({ type: 'application/json' }),  // Ensure that raw body is passed to the webhook
-  campaignController.stripeCampaignWebhook
-);
+// Stripe webhooks are registered in app.js before the JSON body parser
 
 router.get("/dashbord-status", auth("common"), dashboredBar);
 
@@ -28,6 +19,8 @@ router.get("/getMySubscription", auth("common"),subscriptionController.getMySubs
 
 // Other routes for payment, such as creating a plan payment
 router.post('/pay',auth('common'), subscriptionController.createPlanPayment);
+
+router.post('/verifySubscription', auth('common'), subscriptionController.verifySubscriptionPayment);
 
 
 

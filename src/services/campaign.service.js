@@ -44,6 +44,7 @@ const { populate } = require('../models/service.model');
 const Wallet = require('../models/wallet.model');
 const ApiError = require('../utils/ApiError');
 const httpStatus = require('http-status');
+const { syncCampaignStatus, hasObjectId } = require('./campaignStatus.service');
  
  
 
@@ -60,35 +61,13 @@ const httpStatus = require('http-status');
 // };
 
 const createCampaign = async (data) => {
-  const currentDate = new Date(); // Current date in UTC
-  console.log("Current Date: ", currentDate);
+  data.startDate = new Date(data.startDate).toISOString();
+  data.endDate = new Date(data.endDate).toISOString();
 
-  // Convert startDate and endDate to UTC (no time component for easier comparison)
-  const startDate = new Date(data.startDate).toISOString();
-  const endDate = new Date(data.endDate).toISOString();
-
-  console.log("Start Date: ", startDate);
-  console.log("End Date: ", endDate);
-
-  // Determine the status based on start and end dates
-  if (currentDate < new Date(startDate)) {
-    data.status = "upComming"; 
-  } else if (currentDate >= new Date(startDate) && currentDate <= new Date(endDate)) {
-    data.status = "active";  
-  } else if (currentDate > new Date(endDate)) {
-    data.status = "completed"; 
-  }
-
-  // console.log("Assigned Status: ", data.status);
-     
   try {
-    // Create a new campaign object with the updated status
-    const campaign = new Campaign(data); 
-
-    // Save the campaign to the database
+    const campaign = new Campaign(data);
+    syncCampaignStatus(campaign);
     await campaign.save();
-
-    // Return the saved campaign object
     return campaign;
   } catch (error) {
     console.error("Error creating campaign:", error);
@@ -116,7 +95,7 @@ const updateCampaign = async (campaignId, updatedData) => {
 
 
  const getAllCampaigns =  async(filter, option) => {
-   const query = {};
+   const query = { status: { $ne: 'pending' } };
 
   for (const key of Object.keys(filter)) {
     if (
@@ -247,6 +226,9 @@ const getCampaignDetails = async (campaignId) => {
       throw new Error('Campaign not found');
     }
 
+    syncCampaignStatus(campaign);
+    await campaign.save();
+
     return campaign;
   } catch (error) {
     throw new Error('Error fetching campaign details');
@@ -262,11 +244,12 @@ const showInterest = async (campaignId, influencerId) => {
       throw new Error('Campaign not found');
     }
 
-    if (campaign.interestedInfluencers.includes(influencerId)) {
+    if (hasObjectId(campaign.interestedInfluencers, influencerId)) {
       throw new Error('Influencer already showed interest');
     }
 
     campaign.interestedInfluencers.push(influencerId);
+    syncCampaignStatus(campaign);
     await campaign.save();
 
     return campaign;
@@ -299,8 +282,11 @@ const acceptInfluencer = async (campaignId, influencerId) => {
 
     // Accept influencer and move from interested to accepted
     campaign.acceptedInfluencers.push(influencerId);
-    campaign.interestedInfluencers = campaign.interestedInfluencers.filter(id => id?.toString() !== influencerId?.toString());
+    campaign.interestedInfluencers = campaign.interestedInfluencers.filter(
+      (id) => id?.toString() !== influencerId?.toString()
+    );
 
+    syncCampaignStatus(campaign);
     await campaign.save();
 
     return campaign;
@@ -315,13 +301,15 @@ const denyInfluencer = async (campaignId, influencerId) => {
       throw new Error('Campaign not found');
     }
 
-    if (!campaign.interestedInfluencers.includes(influencerId)) {
+    if (!hasObjectId(campaign.interestedInfluencers, influencerId)) {
       throw new Error('Influencer not in the interested list');
     }
 
-    // Remove the influencer from the interested list
-    campaign.interestedInfluencers = campaign.interestedInfluencers.filter(id => id.toString() !== influencerId.toString());
+    campaign.interestedInfluencers = campaign.interestedInfluencers.filter(
+      (id) => id.toString() !== influencerId.toString()
+    );
 
+    syncCampaignStatus(campaign);
     await campaign.save();
 
     return campaign;
@@ -408,6 +396,38 @@ const getInterestedCampaignsForInfluencer = async (influencerId, filter, option)
   
 };
 
+const getCompletedCampaignsCount = async (influencerId) => {
+  return DraftApprove.countDocuments({ influencerId, isApproved: true });
+};
+
+const getCompletedCampaignsForInfluencer = async (influencerId, filter, option) => {
+  const query = {
+    drafts: {
+      $elemMatch: {
+        influencerId,
+        isApproved: true,
+      },
+    },
+  };
+
+  for (const key of Object.keys(filter)) {
+    if (
+      (key === 'campaignName' || key === 'status' || key === 'budget') &&
+      filter[key] !== ''
+    ) {
+      query[key] = { $regex: filter[key], $options: 'i' };
+    } else if (filter[key] !== '') {
+      query[key] = filter[key];
+    }
+  }
+
+  const campaigns = await Campaign.paginate(query, {
+    ...option,
+    populate: 'brandId',
+  });
+  return campaigns;
+};
+
 const getAcceptedCampaignsForInfluencer = async (influencerId, filter, option) => {
   const query = {
                 // Filter for 'upComming' campaigns
@@ -445,13 +465,12 @@ const submitDraft = async (campaignId, influencerId, draftContent, image, social
       throw new Error('Campaign not found');
     }
 
-    if (!campaign.acceptedInfluencers.includes(influencerId)) {
+    if (!hasObjectId(campaign.acceptedInfluencers, influencerId)) {
       throw new Error('Influencer not accepted for this campaign');
     }
 
-    // Prevent duplicate draft submissions
     const alreadySubmitted = campaign.drafts.some(
-      draft => draft.influencerId.toString() === influencerId
+      (draft) => draft.influencerId.toString() === influencerId.toString()
     );
 
     if (alreadySubmitted) {
@@ -464,8 +483,9 @@ const submitDraft = async (campaignId, influencerId, draftContent, image, social
       draftContent,
       image,
       socialPlatform,
-    }); 
+    });
 
+    syncCampaignStatus(campaign);
     await campaign.save();
     return campaign;
 
@@ -539,7 +559,7 @@ const approveDraftAndAddBudget = async (campaignId, draftId) => {
 
     await draftApproval.save();
 
-    // Save the campaign with the approved draft
+    syncCampaignStatus(campaign);
     await campaign.save();
 
     return campaign;
@@ -560,5 +580,7 @@ module.exports = {
   getMyCampaigns,
   getUpcomingCampaignsForInfluecer,
   getInterestedCampaignsForInfluencer,
-  getAcceptedCampaignsForInfluencer
+  getAcceptedCampaignsForInfluencer,
+  getCompletedCampaignsForInfluencer,
+  getCompletedCampaignsCount,
 };

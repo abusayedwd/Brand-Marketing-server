@@ -8,6 +8,7 @@ const WithdrawalRequest = require("../models/withdrawal.model");
  
 const catchAsync = require("../utils/catchAsync");
 const httpStatus = require("http-status");
+const { campaignService } = require("../services");
 
 
 const dashboredBar = catchAsync(async (req, res) => {
@@ -91,9 +92,22 @@ const influencerStatus = catchAsync(async (req, res) => {
 
   // Find the wallet data for the influencer
   const wallet = await Wallet.findOne({ influencerId });
+  const completedCampaignsCount = await campaignService.getCompletedCampaignsCount(influencerId);
 
   if (!wallet) {
-    throw new Error("Wallet not found for the specified influencer");
+    return res.status(200).json(
+      response({
+        status: "success",
+        statusCode: 200,
+        message: "Dashboard status data retrieved successfully.",
+        data: {
+          totalEarnings: "0.00",
+          totalWithdrawals: "0.00",
+          currentBalance: "0.00",
+          completedCampaignsCount,
+        },
+      })
+    );
   }
 
   // Separate transactions for deposits and withdrawals
@@ -111,6 +125,7 @@ const influencerStatus = catchAsync(async (req, res) => {
     totalEarnings: totalEarnings.toFixed(2),
     totalWithdrawals: totalWithdrawals.toFixed(2),
     currentBalance: currentBalance.toFixed(2),
+    completedCampaignsCount,
   }; 
   res.status(200).json(
     response({

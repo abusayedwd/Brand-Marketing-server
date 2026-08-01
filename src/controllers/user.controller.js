@@ -4,6 +4,7 @@ const ApiError = require("../utils/ApiError");
 const catchAsync = require("../utils/catchAsync");
 const response = require("../config/response");
 const { userService } = require("../services");
+const { campaignService } = require("../services");
 const unlinkImages = require("../common/unlinkImage");
 
 const createUser = catchAsync(async (req, res) => {
@@ -52,7 +53,12 @@ const loggedInUser = catchAsync(async (req, res) => {
 
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
-  } 
+  }
+
+  const userData = user.toJSON ? user.toJSON() : user;
+  if (user.role === "influencer") {
+    userData.completedCampaignsCount = await campaignService.getCompletedCampaignsCount(user.id);
+  }
 
   res
     .status(httpStatus.OK)
@@ -61,7 +67,7 @@ const loggedInUser = catchAsync(async (req, res) => {
         message: "User",
         status: "OK",
         statusCode: httpStatus.OK,
-        data: user,
+        data: userData,
       })
     );
 });
@@ -73,6 +79,11 @@ const getUser = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
+  const userData = { user: user.toJSON ? user.toJSON() : user };
+  if (user.role === "influencer") {
+    userData.completedCampaignsCount = await campaignService.getCompletedCampaignsCount(user.id);
+  }
+
   res
     .status(httpStatus.OK)
     .json(
@@ -80,7 +91,7 @@ const getUser = catchAsync(async (req, res) => {
         message: "User",
         status: "OK",
         statusCode: httpStatus.OK,
-        data: { user},
+        data: userData,
       })
     );
 });

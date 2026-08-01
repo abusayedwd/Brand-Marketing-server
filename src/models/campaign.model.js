@@ -78,7 +78,7 @@ const campaignSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['upComming', 'active', 'completed', 'cancelled'],
+    enum: ['pending', 'upComming', 'active', 'completed', 'cancelled'],
     default: 'upComming',
   },
   description: {
@@ -111,6 +111,11 @@ const campaignSchema = new mongoose.Schema({
       required: true,
       // default: { url: `/uploads/users/camp-1751092586149.jpg`, path: "null" },
     },
+  stripeSessionId: {
+    type: String,
+    index: true,
+    sparse: true,
+  },
   interestedInfluencers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",

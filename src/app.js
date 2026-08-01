@@ -137,6 +137,7 @@ const { jwtStrategy } = require('./config/passport');
 const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
+const { subscriptionController, campaignController } = require('./controllers');
 
 const app = express();
 
@@ -164,6 +165,18 @@ app.use(cors({
 }));
 
 app.options('*', cors());
+
+// Stripe webhooks need the raw request body for signature verification
+app.post(
+  '/v1/payments/webhook-subscription',
+  express.raw({ type: 'application/json' }),
+  subscriptionController.stripeWebhook
+);
+app.post(
+  '/v1/payments/webhook-createCampaign',
+  express.raw({ type: 'application/json' }),
+  campaignController.stripeCampaignWebhook
+);
 
 // Parse JSON requests
 app.use(express.json({ limit: '10mb' }));
