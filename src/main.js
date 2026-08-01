@@ -43,7 +43,8 @@ async function connectToDatabase() {
   }
 }
 
-if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+if (process.env.VERCEL) {
+  // === Vercel serverless mode only ===
   module.exports = async (req, res) => {
     try {
       console.log(`${req.method} ${req.url} - Starting`);
@@ -95,8 +96,9 @@ if (process.env.VERCEL || process.env.NODE_ENV === "production") {
     }
   };
 } else {
-  const myIp = process.env.BACKEND_IP || "0.0.0.0";
-  const port = config.port || 3050;
+  // === Railway, local dev, and other persistent server deployments ===
+  const host = "0.0.0.0";
+  const port = process.env.PORT || config.port || 3050;
 
   mongoose
     .connect(
@@ -109,8 +111,8 @@ if (process.env.VERCEL || process.env.NODE_ENV === "production") {
     .then(() => {
       logger.info("Connected to MongoDB Atlas");
 
-      server = app.listen(port, myIp, () => {
-        logger.info(`Listening on http://${myIp}:${port}`);
+      server = app.listen(port, host, () => {
+        logger.info(`Listening on http://${host}:${port}`);
       });
 
       try {
