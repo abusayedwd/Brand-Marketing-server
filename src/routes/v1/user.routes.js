@@ -17,6 +17,10 @@ router.route("/").get( userController.getUsers);
 router.route("/loggedInUser").get(auth("common"), userController.loggedInUser);
 
 router
+  .route("/:userId/moderate")
+  .patch(auth("admin"), userController.moderateUser);
+
+router
   .route("/:userId")
   .get(auth("common"), validate(userValidation.getUser), userController.getUser)
   .patch(

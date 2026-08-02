@@ -116,6 +116,8 @@ const fulfillCampaignPayment = async (session) => {
       return { alreadyFulfilled: true, campaign };
     }
 
+    // Payment succeeded — leave pending so syncCampaignStatus can set upComming/active
+    campaign.status = 'upComming';
     syncCampaignStatus(campaign);
     await campaign.save();
 

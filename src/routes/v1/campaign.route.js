@@ -106,6 +106,8 @@ campaignController.getAcceptedCampaignsForInfluencer);
 router.get('/getMyCompletedCampaigns', auth('influencer'),
 campaignController.getMyCompletedCampaigns);
 
+router.get('/brandAnalytics', auth('brand'), campaignController.getBrandAnalytics);
+
 router.get('/getMydraft', auth('influencer'), campaignController.getMydraft);
 
 router.get('/:campaignId', auth('common'), campaignController.getCampaignDetails);
@@ -126,6 +128,7 @@ router.post('/submitDraft/:campaignId', auth('influencer'),
     convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
     campaignController.submitDraft);
 router.post('/approveDraft', auth('brand'), campaignController.approveDraft);
+router.post('/rejectDraft', auth('brand'), campaignController.rejectDraft);
 
 // Webhook Route (Uncomment and implement as needed)
  // router.post('/webhook-createCampaign', auth('brand'), campaignController.stripeWebhook); 

@@ -26,11 +26,12 @@ const router = express.Router();
 
 
 router.post("/request-withdrawal", auth("influencer"), withdrawController.requestWithdrawal)
-router.post("/Payment-approveWithdrawal/:requestId", auth("common"),
+router.post("/Payment-approveWithdrawal/:requestId", auth("admin"),
     [uploadUsers.single("image")],
     convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
  withdrawController.approveWithdrawal)
-router.get("/getAllWithdrawalRequests", auth("common"), withdrawController.getAllWithdrawalRequests)
+router.post("/rejectWithdrawal/:requestId", auth("admin"), withdrawController.rejectWithdrawal)
+router.get("/getAllWithdrawalRequests", auth("admin"), withdrawController.getAllWithdrawalRequests)
 router.get("/getMyWithdrawalRequests", auth("influencer"), withdrawController.getMyWithdrawalRequests)
 
 router.get("/my-wallet", auth("influencer"), withdrawController.getWallet)

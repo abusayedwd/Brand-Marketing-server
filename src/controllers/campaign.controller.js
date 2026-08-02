@@ -605,6 +605,28 @@ const approveDraft = catchAsync(async (req, res) => {
   
 });
 
+const rejectDraft = catchAsync(async (req, res) => {
+  const { campaignId, draftId, rejectionReason } = req.body;
+  const campaign = await campaignService.rejectDraft(campaignId, draftId, rejectionReason);
+  res.status(200).json({
+    message: 'Draft rejected. Influencer can revise and resubmit.',
+    code: 200,
+    campaign,
+  });
+});
+
+const getBrandAnalytics = catchAsync(async (req, res) => {
+  const data = await campaignService.getBrandCampaignAnalytics(req.user.id);
+  res.status(httpStatus.OK).json(
+    response({
+      message: 'Brand campaign analytics',
+      status: 'OK',
+      statusCode: httpStatus.OK,
+      data,
+    })
+  );
+});
+
 const getMydraft = catchAsync(async(req, res)=> {
   const influencerId = req.user.id
   const drafts = await DraftApprove.find({influencerId})
@@ -627,6 +649,8 @@ module.exports = {
   denyInfluencer,
   submitDraft,
   approveDraft,
+  rejectDraft,
+  getBrandAnalytics,
   getAllCampaigns,
   getMyCampaigns,
   stripeCampaignWebhook,

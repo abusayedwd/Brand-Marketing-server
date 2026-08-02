@@ -12,6 +12,15 @@ const loginUserWithEmailAndPassword = async (email, password) => {
   if (!user || !(await user.isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Incorrect email or password");
   }
+  if (user.isBanned) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Your account has been banned. Contact support.");
+  }
+  if (user.isSuspended) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Your account is suspended. Contact support.");
+  }
+  if (user.isDeleted) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Your account has been deleted.");
+  }
   return user;
 };
 

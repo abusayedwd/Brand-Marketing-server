@@ -24,7 +24,19 @@ const createUser = catchAsync(async (req, res) => {
 
 const getUsers = catchAsync(async (req, res) => {
   // Extract filters and options from query params
-  const filter = pick(req.query, ['fullName', 'role', 'gender', 'interests', 'socialMedia']);
+  const filter = pick(req.query, [
+    'fullName',
+    'role',
+    'gender',
+    'interests',
+    'socialMedia',
+    'platform',
+    'minFollowers',
+    'address',
+    'isBanned',
+    'isSuspended',
+    'isSubscribe',
+  ]);
   const options = pick(req.query, ['sortBy', 'limit', 'page']);
 
   const result = await userService.queryUsers(filter, options);
@@ -187,6 +199,18 @@ const deleteUser = catchAsync(async (req, res) => {
     );
 });
 
+const moderateUser = catchAsync(async (req, res) => {
+  const user = await userService.moderateUser(req.params.userId, req.body);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "User moderation updated",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: user,
+    })
+  );
+});
+
 
 module.exports = {
   createUser,
@@ -195,4 +219,5 @@ module.exports = {
   updateUser,
   deleteUser,
   loggedInUser,
+  moderateUser,
 };

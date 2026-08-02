@@ -67,42 +67,126 @@ const createUser = async (userBody) => {
  
  
 const queryUsers = async (filter, options) => {
-  const query = {};
+  const query = { isDeleted: { $ne: true } };
+  const { minFollowers, platform, address, ...rest } = filter;
 
-  // Construct the query based on filter
-  for (const key of Object.keys(filter)) {
-    if ((key === 'fullName' || key === 'email' || key === 'userName') && filter[key] !== '') {
-      query[key] = { $regex: filter[key], $options: 'i' }; // case-insensitive partial match
-    } else if (key === 'interests' && filter[key] !== '') {
+  for (const key of Object.keys(rest)) {
+    if ((key === 'fullName' || key === 'email' || key === 'userName') && rest[key] !== '') {
+      query[key] = { $regex: rest[key], $options: 'i' };
+    } else if (key === 'interests' && rest[key] !== '') {
       let interestsArray = [];
-      if (typeof filter[key] === 'string') {
-        interestsArray = filter[key].split(',').map((i) => i.trim());
-      } else if (Array.isArray(filter[key])) {
-        interestsArray = filter[key];
+      if (typeof rest[key] === 'string') {
+        interestsArray = rest[key].split(',').map((i) => i.trim());
+      } else if (Array.isArray(rest[key])) {
+        interestsArray = rest[key];
       }
-
       query.interests = { $in: interestsArray };
-    } else if (key === 'socialMedia' && filter[key] !== '') {
+    } else if (key === 'socialMedia' && rest[key] !== '') {
       let platforms = [];
-      if (typeof filter[key] === 'string') {
-        platforms = filter[key].split(',').map((p) => p.trim());
-      } else if (Array.isArray(filter[key])) {
-        platforms = filter[key];
+      if (typeof rest[key] === 'string') {
+        platforms = rest[key].split(',').map((p) => p.trim());
+      } else if (Array.isArray(rest[key])) {
+        platforms = rest[key];
       }
-
       query.socialMedia = { $elemMatch: { platform: { $in: platforms } } };
-    } else if (filter[key] !== '') {
-      query[key] = filter[key];
+    } else if (rest[key] !== '' && rest[key] !== undefined) {
+      query[key] = rest[key];
     }
   }
 
-  // Use the paginate method and populate the 'subscriptionId' field
+  if (platform) {
+    query.socialMedia = {
+      ...(query.socialMedia || {}),
+      $elemMatch: {
+        ...(query.socialMedia?.$elemMatch || {}),
+        platform: { $regex: new RegExp(platform, 'i') },
+      },
+    };
+  }
+
+  if (minFollowers) {
+    const min = Number(minFollowers) || 0;
+    query.socialMedia = {
+      ...(query.socialMedia || {}),
+      $elemMatch: {
+        ...(query.socialMedia?.$elemMatch || {}),
+        followers: { $regex: /\d/ },
+      },
+    };
+    // Keep numeric string followers filter soft; clients can refine further
+    query.$expr = {
+      $gte: [
+        {
+          $max: {
+            $map: {
+              input: { $ifNull: ['$socialMedia', []] },
+              as: 'sm',
+              in: {
+                $convert: {
+                  input: {
+                    $replaceAll: {
+                      input: { $toString: '$$sm.followers' },
+                      find: ',',
+                      replacement: '',
+                    },
+                  },
+                  to: 'double',
+                  onError: 0,
+                  onNull: 0,
+                },
+              },
+            },
+          },
+        },
+        min,
+      ],
+    };
+  }
+
+  if (address) {
+    query.address = { $regex: address, $options: 'i' };
+  }
+
   const users = await User.paginate(query, {
-    ...options,  
-    populate: 'subscriptionId' 
+    ...options,
+    populate: 'subscriptionId',
   });
 
   return users;
+};
+
+const moderateUser = async (userId, { isBanned, isSuspended, isEmailVerified, moderationNote }) => {
+  const user = await getUserById(userId);
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+
+  if (typeof isBanned === 'boolean') user.isBanned = isBanned;
+  if (typeof isSuspended === 'boolean') user.isSuspended = isSuspended;
+  if (typeof isEmailVerified === 'boolean') user.isEmailVerified = isEmailVerified;
+  if (moderationNote !== undefined) user.moderationNote = moderationNote;
+
+  await user.save();
+
+  try {
+    const { createNotification } = require('./notification.service');
+    let title = 'Account update';
+    let message = 'Your account status was updated by admin.';
+    if (user.isBanned) {
+      title = 'Account banned';
+      message = moderationNote || 'Your account has been banned.';
+    } else if (user.isSuspended) {
+      title = 'Account suspended';
+      message = moderationNote || 'Your account has been suspended.';
+    }
+    await createNotification({
+      userId: user.id,
+      title,
+      message,
+      type: 'moderation',
+      email: true,
+    });
+  } catch (_) {}
+
+  return user;
 };
 
 
@@ -211,4 +295,5 @@ module.exports = {
   deleteUserById,
   isUpdateUser,
   loggedInUser,
+  moderateUser,
 };

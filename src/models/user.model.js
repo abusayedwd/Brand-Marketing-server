@@ -156,6 +156,18 @@ socialMedia: [
       type: Boolean,
       default: false,
     },
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
+    moderationNote: {
+      type: String,
+      default: "",
+    },
      subscriptionId : {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PlanSubscription",

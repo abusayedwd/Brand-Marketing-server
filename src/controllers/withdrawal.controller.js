@@ -142,20 +142,43 @@ const getWallet = catchAsync(async (req, res) => {
   // Sort transactions by date in descending order
   wallet.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const payload = wallet.toJSON ? wallet.toJSON() : wallet;
+  payload.availableBalance = Math.max(
+    0,
+    (wallet.balance || 0) - (wallet.heldBalance || 0)
+  );
+
   res.status(httpStatus.OK).json(
     response({
       message: "Wallet get successfully",
       status: "OK",
       statusCode: httpStatus.OK,
-      data: wallet,
+      data: payload,
     })
   );
 });
 
 
+const rejectWithdrawal = catchAsync(async (req, res) => {
+  const { requestId } = req.params;
+  const { rejectionReason } = req.body;
+  const withdrawalRequest = await withdrawalService.rejectWithdrawal(
+    requestId,
+    rejectionReason
+  );
+  res.status(httpStatus.OK).json(
+    response({
+      message: 'Withdrawal request rejected',
+      statusCode: httpStatus.OK,
+      data: withdrawalRequest,
+    })
+  );
+});
+
 module.exports = { 
     requestWithdrawal, 
-    approveWithdrawal, 
+    approveWithdrawal,
+    rejectWithdrawal,
     getAllWithdrawalRequests ,
     getWithdrawById,
     getWallet,

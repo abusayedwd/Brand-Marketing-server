@@ -8,6 +8,12 @@ const paymentRorte = require("./payment.route");
 const campaignRoute = require("./campaign.route");
 const withdrawRoute = require("./withdraw.route");
 const dashboardRoute = require("./dashboardStatus.route");
+const notificationRoute = require("./notification.route");
+const contentRoute = require("./content.route");
+const planRoute = require("./plan.route");
+const favoriteRoute = require("./favorite.route");
+const ratingRoute = require("./rating.route");
+const supportRoute = require("./support.route");
 
 
 const router = express.Router();
@@ -41,8 +47,30 @@ const defaultRoutes = [
     path: "/dashboard",
     route: dashboardRoute, 
   },
-  
- 
+  {
+    path: "/notifications",
+    route: notificationRoute,
+  },
+  {
+    path: "/content",
+    route: contentRoute,
+  },
+  {
+    path: "/plans",
+    route: planRoute,
+  },
+  {
+    path: "/favorites",
+    route: favoriteRoute,
+  },
+  {
+    path: "/ratings",
+    route: ratingRoute,
+  },
+  {
+    path: "/support",
+    route: supportRoute,
+  },
 ];
 
 const devRoutes = [

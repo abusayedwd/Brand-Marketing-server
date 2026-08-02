@@ -10,6 +10,10 @@ const walletSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  heldBalance: {
+    type: Number,
+    default: 0
+  },
   transactions: [{
     amount: {
       type: Number,
@@ -20,7 +24,7 @@ const walletSchema = new mongoose.Schema({
     },
     type: {
       type: String,
-      enum: ['deposit', 'withdrawal'],
+      enum: ['deposit', 'withdrawal', 'hold', 'hold_release'],
       required: true
     },
     date: {

@@ -85,9 +85,17 @@ const withdrawalRequestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  approvalNote: { // New field for the admin's note
+  approvalNote: {
     type: String,
-    required: false, // This is optional for now, based on your use case
+    required: false,
+  },
+  rejectionReason: {
+    type: String,
+    default: '',
+  },
+  isHeld: {
+    type: Boolean,
+    default: false,
   },
   image: {
       type: Object,

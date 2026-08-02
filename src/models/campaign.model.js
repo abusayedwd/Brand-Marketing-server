@@ -142,11 +142,19 @@ const campaignSchema = new mongoose.Schema({
       type: Date, 
       default: Date.now 
     },
-     isApproved: {     // New field to track approval status
+     isApproved: {
       type: Boolean,
       default: false
     },
-     budget: {         // Budget added to influencer's wallet when draft is approved
+    isRejected: {
+      type: Boolean,
+      default: false
+    },
+    rejectionReason: {
+      type: String,
+      default: ''
+    },
+     budget: {
       type: Number,
       default: 0
     }
