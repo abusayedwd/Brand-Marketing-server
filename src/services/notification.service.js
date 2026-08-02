@@ -1,6 +1,7 @@
 const Notification = require('../models/notification.model');
 const { User } = require('../models');
 const { sendEmail } = require('./email.service');
+const socketIO = require('../utils/socketIO');
 
 const createNotification = async ({
   userId,
@@ -19,6 +20,20 @@ const createNotification = async ({
     link,
     meta,
   });
+
+  // Real-time push to connected clients in user:{id} room
+  if (typeof socketIO.emitToUser === 'function') {
+    socketIO.emitToUser(userId.toString(), 'notification:new', {
+      id: notification.id || notification._id,
+      title,
+      message,
+      type,
+      link,
+      meta,
+      isRead: false,
+      createdAt: notification.createdAt,
+    });
+  }
 
   if (email) {
     try {

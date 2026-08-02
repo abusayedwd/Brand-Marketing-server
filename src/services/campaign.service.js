@@ -340,6 +340,18 @@ const denyInfluencer = async (campaignId, influencerId) => {
    
 // };
 
+/** Public home listing — recruiting campaigns only, limited brand fields */
+const getOpenCampaigns = async (options = {}) => {
+  return Campaign.paginate(
+    { status: 'upComming' },
+    {
+      ...options,
+      sortBy: options.sortBy || 'createdAt:desc',
+      populate: 'brandId',
+    }
+  );
+};
+
 const getUpcomingCampaignsForInfluecer = async (filter, option) => {
   const query = { status: 'upComming' }; // Start with filtering 'upComming' status
 
@@ -698,6 +710,7 @@ module.exports = {
   getBrandCampaignAnalytics,
   getAllCampaigns,
   getMyCampaigns,
+  getOpenCampaigns,
   getUpcomingCampaignsForInfluecer,
   getInterestedCampaignsForInfluencer,
   getAcceptedCampaignsForInfluencer,

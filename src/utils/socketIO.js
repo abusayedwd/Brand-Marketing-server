@@ -1,15 +1,26 @@
-const logger = require("./../../src/config/logger");
+const logger = require("../config/logger");
 
 const socketIO = (io) => {
   io.on("connection", (socket) => {
-    console.log(`ID: ${socket.id} just connected`);
+    logger.info(`Socket connected: ${socket.id}`);
 
+    // User-scoped room for real-time notifications
+    socket.on("join-user", (userId, callback) => {
+      if (!userId) {
+        if (typeof callback === "function") callback("userId required");
+        return;
+      }
+      const room = `user:${userId}`;
+      socket.join(room);
+      if (typeof callback === "function") callback("ok");
+    });
+
+    // Chat rooms (existing messaging)
     socket.on("join-room", (data, callback) => {
-      //console.log('someone wants to join--->', data);
       if (data?.roomId) {
         socket.join("room" + data.roomId);
-        callback("Join room successful");
-      } else {
+        if (typeof callback === "function") callback("Join room successful");
+      } else if (typeof callback === "function") {
         callback("Must provide a valid user id");
       }
     });
@@ -21,9 +32,21 @@ const socketIO = (io) => {
     });
 
     socket.on("disconnect", () => {
-      console.log(`ID: ${socket.id} disconnected`);
+      logger.info(`Socket disconnected: ${socket.id}`);
     });
   });
 };
 
+/** Emit a notification event to a specific user room */
+const emitToUser = (userId, event, payload) => {
+  try {
+    if (global.io && userId) {
+      global.io.to(`user:${userId}`).emit(event, payload);
+    }
+  } catch (err) {
+    logger.warn(`Socket emit failed: ${err.message}`);
+  }
+};
+
 module.exports = socketIO;
+module.exports.emitToUser = emitToUser;

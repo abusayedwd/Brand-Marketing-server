@@ -90,6 +90,7 @@ router.post('/verifyCampaignPayment', auth('brand'), campaignController.verifyCa
 router.post('/resumePayment/:campaignId', auth('brand'), campaignController.resumeCampaignPayment);
 
 // Public (Get) Routes
+router.get('/open', campaignController.getOpenCampaigns);
 router.get('/getAllCampaigns', auth('common'), campaignController.getAllCampaigns);
 router.get('/getMy-Campaigns', auth('common'), campaignController.getMyCampaigns);
 

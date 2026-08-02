@@ -433,6 +433,20 @@ const showInterest = async (req, res) => {
   }
 };
 
+const getOpenCampaigns = catchAsync(async (req, res) => {
+  const options = pick(req.query, ['sortBy', 'limit', 'page']);
+  if (!options.limit) options.limit = 6;
+  const campaigns = await campaignService.getOpenCampaigns(options);
+  res.status(httpStatus.OK).json(
+    response({
+      message: 'Open campaigns',
+      status: 'OK',
+      statusCode: httpStatus.OK,
+      data: campaigns,
+    })
+  );
+});
+
 const getUpcomingCampaignsForInfluecer = catchAsync(async (req, res) => {
  
   const filter = pick(req.query, ['campaignName', 'status', 'budget','brandId']); 
@@ -656,6 +670,7 @@ module.exports = {
   stripeCampaignWebhook,
   verifyCampaignPayment,
   resumeCampaignPayment,
+  getOpenCampaigns,
   getUpcomingCampaignsForInfluecer,
   getInterestedCampaignsForInfluencer,
   getAcceptedCampaignsForInfluencer,
