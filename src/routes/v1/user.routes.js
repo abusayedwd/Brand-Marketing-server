@@ -5,9 +5,9 @@ const userValidation = require("../../validations/user.validation");
 const userController = require("../../controllers/user.controller");
 const userFileUploadMiddleware = require("../../middlewares/fileUpload");
 const convertHeicToPngMiddleware = require("../../middlewares/converter");
-const UPLOADS_FOLDER_USERS = "./public/uploads/users";
+const cloudinaryUpload = require("../../middlewares/cloudinaryUpload");
 
-const uploadUsers = userFileUploadMiddleware(UPLOADS_FOLDER_USERS);
+const uploadUsers = userFileUploadMiddleware();
 
 const router = express.Router();
 
@@ -25,8 +25,9 @@ router
   .get(auth("common"), validate(userValidation.getUser), userController.getUser)
   .patch(
     auth("common"),
-    [uploadUsers.single("image")],
-    convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
+    uploadUsers.single("image"),
+    convertHeicToPngMiddleware(),
+    cloudinaryUpload("brivio/users"),
     userController.updateUser
   );
 

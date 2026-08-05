@@ -39,15 +39,11 @@ const requestWithdrawal = catchAsync(async (req, res) => {
 const approveWithdrawal = catchAsync(async (req, res) => { 
     const { requestId } = req.params; // Withdrawal request ID to approve
     const { approvalNote } = req.body; // Note for the approval
-  const image = {};
-  if (req.file) {
-    image.url = "/uploads/users/" + req.file.filename;
-    image.path = req.file.path;
-  }
-  if (req.file) {
+  const { imageFromUpload } = require('../utils/uploadToCloudinary');
+  const image = imageFromUpload(req.file);
+  if (image) {
     req.body.image = image;
   }
-    // Ensure file is uploaded
     if (!image) {
       return res.status(400).json({ message: 'Image file is required' });
     }

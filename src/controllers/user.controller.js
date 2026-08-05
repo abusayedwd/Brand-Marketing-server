@@ -134,14 +134,12 @@ const getUser = catchAsync(async (req, res) => {
 // });
 
 
+const { imageFromUpload } = require('../utils/uploadToCloudinary');
+
 const updateUser = catchAsync(async (req, res) => {
-  // Handle uploaded image (single file)
-   const image = {};
-  if (req.file) {
-    image.url = "/uploads/users/" + req.file.filename;
-    image.path = req.file.path;
-  }
-  if (req.file) {
+  // Handle uploaded image (Cloudinary)
+  const image = imageFromUpload(req.file);
+  if (image) {
     req.body.image = image;
   }
 

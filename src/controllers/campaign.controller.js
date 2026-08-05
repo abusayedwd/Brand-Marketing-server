@@ -94,21 +94,18 @@ const { fulfillCampaignPayment, createCheckoutSessionForCampaign } = require("..
 
 const stripeSessionRetrieveOptions = { expand: ['payment_intent'] };
 
+const { imageFromUpload } = require('../utils/uploadToCloudinary');
+
 const createCampaign = catchAsync(async (req, res) => {
   const { budget, campaignName, description, endDate, influencerCount, selectedPlatforms, startDate, totalAmount } = req.body; // Include imageUrl
   const brandId = req.user.id;
- 
-  
-  // const imageUrl = "/uploads/users/" + image;
 
-  const image = {};
-  if (req.file) {
-    image.url = "/uploads/users/" + req.file.filename;
-    image.path = req.file.path;
+  const image = imageFromUpload(req.file);
+  if (image) {
     req.body.image = image;
   }
 
-  if (!req.file) {
+  if (!image) {
     return res.status(400).json({ message: "Image file is required" });
   }
 
@@ -312,26 +309,15 @@ const updateCampaign = catchAsync(async (req, res) => {
 
   const { budget, campaignName,description, endDate, influencerCount, selectedPlatforms, startDate, totalAmount } = req.body;
  
-      const image = {};
-  if (req.file) {
-    image.url = "/uploads/users/" + req.file.filename;
-    image.path = req.file.path;
-  }
-  if (req.file) {
+  const image = imageFromUpload(req.file);
+  if (image) {
     req.body.image = image;
   }
-    // Ensure file is uploaded
-    if (!image) {
-      return res.status(400).json({ message: 'Image file is required' });
-    }
-
-
- 
 
    const updatedData = {
        budget,  
        campaignName,
-       image:image.url,
+       ...(image?.url ? { image: image.url } : {}),
        description, 
        endDate, 
        influencerCount, 
@@ -565,15 +551,8 @@ const submitDraft = catchAsync(async (req, res) => {
     const influencerId = req?.user?.id;
     const { draftContent, socialPlatform } = req.body;
 
-    // File image handling
-    const image = {};
-    if (req.file) {
-      image.url = "/uploads/users/" + req.file.filename;
-      image.path = req.file.path;
-    }
-
-    // Require image
-    if (!req.file) {
+    const image = imageFromUpload(req.file);
+    if (!image) {
       return res.status(400).json({ message: 'Image file is required' });
     }
 

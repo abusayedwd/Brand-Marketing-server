@@ -38,8 +38,10 @@ const userSchema = mongoose.Schema(
     },
     image: {
       type: Object,
-      required: [true, "Image is required"],
-      default: { url: `/uploads/users/user-1752036041119.jpg`, path: "null" },
+      default: {
+        url: "https://res.cloudinary.com/demo/image/upload/w_200,h_200,c_fill,g_face/sample.jpg",
+        path: "demo/sample",
+      },
     },
     password: {
       type: String,

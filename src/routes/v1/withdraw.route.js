@@ -8,28 +8,19 @@ const userValidation = require("../../validations/user.validation");
  
 const userFileUploadMiddleware = require("../../middlewares/fileUpload");
 const convertHeicToPngMiddleware = require("../../middlewares/converter");
+const cloudinaryUpload = require("../../middlewares/cloudinaryUpload");
 const { withdrawController } = require("../../controllers");
- 
-const UPLOADS_FOLDER_USERS = "./public/uploads/users";
 
-const uploadUsers = userFileUploadMiddleware(UPLOADS_FOLDER_USERS);
+const uploadUsers = userFileUploadMiddleware();
 
 const router = express.Router();
 
-
-// router.post("/createCampaign",auth('brand'),
-//      [uploadUsers.single("image")],
-//      convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
-//      campaignController.createCampaign);
- 
- 
-
-
 router.post("/request-withdrawal", auth("influencer"), withdrawController.requestWithdrawal)
 router.post("/Payment-approveWithdrawal/:requestId", auth("admin"),
-    [uploadUsers.single("image")],
-    convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
- withdrawController.approveWithdrawal)
+    uploadUsers.single("image"),
+    convertHeicToPngMiddleware(),
+    cloudinaryUpload("brivio/withdrawals"),
+    withdrawController.approveWithdrawal)
 router.post("/rejectWithdrawal/:requestId", auth("admin"), withdrawController.rejectWithdrawal)
 router.get("/getAllWithdrawalRequests", auth("admin"), withdrawController.getAllWithdrawalRequests)
 router.get("/getMyWithdrawalRequests", auth("influencer"), withdrawController.getMyWithdrawalRequests)

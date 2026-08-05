@@ -70,19 +70,19 @@ const userValidation = require("../../validations/user.validation");
 
 const userFileUploadMiddleware = require("../../middlewares/fileUpload");
 const convertHeicToPngMiddleware = require("../../middlewares/converter");
+const cloudinaryUpload = require("../../middlewares/cloudinaryUpload");
 const { campaignController } = require("../../controllers");
-const UPLOADS_FOLDER_USERS = "./public/uploads/users";
 
-// File upload middleware for users
-const uploadUsers = userFileUploadMiddleware(UPLOADS_FOLDER_USERS);
+const uploadUsers = userFileUploadMiddleware();
 
 const router = express.Router();
 
 
 
 router.post("/createCampaign", auth('brand'),
-    [uploadUsers.single("image")],
-    convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
+    uploadUsers.single("image"),
+    convertHeicToPngMiddleware(),
+    cloudinaryUpload("brivio/campaigns"),
     campaignController.createCampaign);
 
 router.post('/verifyCampaignPayment', auth('brand'), campaignController.verifyCampaignPayment);
@@ -116,8 +116,9 @@ router.get('/:campaignId', auth('common'), campaignController.getCampaignDetails
 
 // Updating Campaign
 router.put('/updateCampaign/:campaignId', auth('brand'),
-    [uploadUsers.single("image")],
-    convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
+    uploadUsers.single("image"),
+    convertHeicToPngMiddleware(),
+    cloudinaryUpload("brivio/campaigns"),
     campaignController.updateCampaign);
 
 // Campaign Interactions (Accept, Deny, Show Interest)
@@ -125,8 +126,9 @@ router.post('/acceptInfluencer/:campaignId', auth('brand'), campaignController.a
 router.post('/denyInfluencer/:campaignId', auth('brand'), campaignController.denyInfluencer);
 router.post('/interested/:campaignId', auth('influencer'), campaignController.showInterest);
 router.post('/submitDraft/:campaignId', auth('influencer'),
-    [uploadUsers.single("image")],
-    convertHeicToPngMiddleware(UPLOADS_FOLDER_USERS),
+    uploadUsers.single("image"),
+    convertHeicToPngMiddleware(),
+    cloudinaryUpload("brivio/drafts"),
     campaignController.submitDraft);
 router.post('/approveDraft', auth('brand'), campaignController.approveDraft);
 router.post('/rejectDraft', auth('brand'), campaignController.rejectDraft);
