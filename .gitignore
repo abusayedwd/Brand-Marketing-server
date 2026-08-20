@@ -1,23 +1,30 @@
 # Dependencies
-node_modules
+node_modules/
 
-# yarn error logs
-yarn-error.log
-
-# Environment varibales
-!.env*.example
+# Environment
 .env
+.env.local
+.env.*.local
+!.env*.example
 
-# Code coverage
-coverage
-
+# Logs
+*.log
 app.log*
+yarn-error.log
+npm-debug.log*
 
+# Build / coverage
 /dist
-
+coverage/
 .vercel
-now.json
-config.bat
-branch_structure.json
-temp_auto_push.bat
-temp_interactive_push.bat
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+
+# Local upload artifacts (Cloudinary is used for media)
+public/uploads/**/*
+!public/uploads/**/.gitkeep
