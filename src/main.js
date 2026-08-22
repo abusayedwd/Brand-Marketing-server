@@ -97,7 +97,7 @@ if (process.env.VERCEL) {
   };
 } else {
   // === Railway, local dev, and other persistent server deployments ===
-  const host = "0.0.0.0";
+  const host = "168.231.67.56";
   const port = process.env.PORT || config.port || 3050;
 
   mongoose
