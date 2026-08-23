@@ -60,7 +60,7 @@
 
 
 const mongoose = require('mongoose');
-const { toJSON, paginate } = require('./plugins');
+const { toJSON, paginate, cloudinaryImage } = require('./plugins');
 
 const campaignSchema = new mongoose.Schema({
   budget: {
@@ -109,7 +109,6 @@ const campaignSchema = new mongoose.Schema({
  image: {
       type: String,
       required: true,
-      // default: { url: `/uploads/users/camp-1751092586149.jpg`, path: "null" },
     },
   stripeSessionId: {
     type: String,
@@ -131,8 +130,8 @@ const campaignSchema = new mongoose.Schema({
     },
     draftContent: String,
      image: {
-      type: Object, 
-      default: { url: ``, path: "null" },
+      type: mongoose.Schema.Types.Mixed,
+      default: '',
     },  
      socialPlatform: [{
       platform: String,  
@@ -166,6 +165,7 @@ const campaignSchema = new mongoose.Schema({
 
 campaignSchema.plugin(toJSON);
 campaignSchema.plugin(paginate);
+campaignSchema.plugin(cloudinaryImage);
 
 const Campaign = mongoose.model('Campaign', campaignSchema);
 

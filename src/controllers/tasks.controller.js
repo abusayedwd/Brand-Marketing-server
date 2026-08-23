@@ -6,6 +6,7 @@ const response = require("../config/response");
 const { crewService } = require("../services");
 const unlinkImage = require("../common/unlinkImage");
 const { Service } = require("../models");
+const { applyUploadedImage } = require("../utils/uploadToCloudinary");
 
 const createTask = catchAsync(async (req, res) => {
   // console.log(req.body);
@@ -32,16 +33,11 @@ const createTask = catchAsync(async (req, res) => {
     crewData.userId = req.user._id;
   }
 
-  if (!req.file) {
+  const image = applyUploadedImage(req);
+  if (!image) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Image is required");
   }
-
-  if (req.file) {
-    crewData.image = {
-      url: "/uploads/crews/" + req.file.filename,
-      path: req.file.path,
-    };
-  }
+  crewData.image = image;
 
   const crew = await crewService.createCrew(crewData);
   res.status(httpStatus.CREATED).json(response({
@@ -99,12 +95,7 @@ const updateTask = catchAsync(async (req, res) => {
     affiliations: parsedAffiliations
   };
 
-  // Check if an image is uploaded
-  const image = {};
-  if (req.file) {
-    image.url = "/uploads/crews/" + req.file.filename;
-    image.path = req.file.path;
-  }
+  const image = applyUploadedImage(req);
 
   // Update crew data
   const updatedTask = await crewService.updateCrewById(crewId, updatedCrewData, image);

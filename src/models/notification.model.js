@@ -11,7 +11,7 @@ const notificationSchema = new mongoose.Schema(
     },
     title: { type: String, required: true },
     message: { type: String, required: true },
-    type: {
+      type: {
       type: String,
       enum: [
         'general',
@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema(
         'withdraw',
         'payment',
         'moderation',
+        'support',
         'system',
       ],
       default: 'general',

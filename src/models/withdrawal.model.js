@@ -50,7 +50,7 @@
 
 
 const mongoose = require('mongoose');
-const { toJSON, paginate } = require('./plugins');
+const { toJSON, paginate, cloudinaryImage } = require('./plugins');
 
 const withdrawalRequestSchema = new mongoose.Schema({
   influencerId: {
@@ -98,9 +98,8 @@ const withdrawalRequestSchema = new mongoose.Schema({
     default: false,
   },
   image: {
-      type: Object,
-      required: [true, "Image is required"],
-      default: { url: ``, path: "null" },
+      type: mongoose.Schema.Types.Mixed,
+      default: '',
     },
   createdAt: {
     type: Date,
@@ -110,6 +109,7 @@ const withdrawalRequestSchema = new mongoose.Schema({
 
 withdrawalRequestSchema.plugin(toJSON);
 withdrawalRequestSchema.plugin(paginate);
+withdrawalRequestSchema.plugin(cloudinaryImage);
 
 const WithdrawalRequest = mongoose.model('WithdrawalRequest', withdrawalRequestSchema);
 

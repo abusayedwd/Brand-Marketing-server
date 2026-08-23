@@ -243,8 +243,18 @@ const updateUserById = async (userId, updateBody) => {
   }
 
   
-  // Update fields safely
+  if (updateBody.image && typeof updateBody.image === 'object') {
+    updateBody.image = updateBody.image.url || '';
+  }
+  if (typeof updateBody.image === 'string' && updateBody.image.startsWith('/uploads/')) {
+    delete updateBody.image;
+  }
+
   user.set(updateBody);
+  if (typeof updateBody.image === 'string') {
+    user.image = updateBody.image;
+    user.markModified('image');
+  }
 
   await user.save();
 

@@ -14,6 +14,8 @@ const deleteAtPath = (obj, path, index) => {
   deleteAtPath(obj[path[index]], path, index + 1);
 };
 
+const { normalizeImagesDeep } = require('../../utils/uploadToCloudinary');
+
 const toJSON = (schema) => {
   let transform;
   if (schema.options.toJSON && schema.options.toJSON.transform) {
@@ -31,8 +33,7 @@ const toJSON = (schema) => {
       ret.id = ret._id?.toString();
       delete ret._id;
       delete ret.__v;
-      // delete ret.createdAt;
-      // delete ret.updatedAt;
+      normalizeImagesDeep(ret);
       if (transform) {
         return transform(doc, ret, options);
       }

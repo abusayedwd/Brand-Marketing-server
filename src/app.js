@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -27,6 +29,7 @@ app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
@@ -58,7 +61,23 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(xss());
 app.use(mongoSanitize());
 app.use(compression());
-app.use(express.static('public'));
+const publicDir = path.join(__dirname, '../public');
+const defaultAvatar = path.join(publicDir, 'images/default-avatar.svg');
+
+app.use('/uploads', (req, res, next) => {
+  const relative = req.path.replace(/^\/+/, '');
+  const uploadsRoot = path.resolve(publicDir, 'uploads');
+  const filePath = path.resolve(uploadsRoot, relative);
+  if (!filePath.startsWith(uploadsRoot)) return next();
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    return res.sendFile(filePath);
+  }
+  if (fs.existsSync(defaultAvatar)) {
+    return res.sendFile(defaultAvatar);
+  }
+  return next();
+});
+app.use(express.static(publicDir));
 
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);

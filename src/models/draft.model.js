@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const { toJSON, cloudinaryImage } = require('./plugins');
 
 const draftApproveSchema = new mongoose.Schema({
   campaignId: {
@@ -14,8 +15,8 @@ const draftApproveSchema = new mongoose.Schema({
   },
  draftContent: String,
      image: {
-      type: Object, 
-      default: { url: ``, path: "null" },
+      type: mongoose.Schema.Types.Mixed,
+      default: '',
     },  
      socialPlatform: [{
       platform: String,  
@@ -43,7 +44,8 @@ const draftApproveSchema = new mongoose.Schema({
   }
 });
 
-
+draftApproveSchema.plugin(toJSON);
+draftApproveSchema.plugin(cloudinaryImage);
 
 const DraftApprove = mongoose.model('DraftApprove', draftApproveSchema);
 

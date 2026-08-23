@@ -23,7 +23,7 @@ const createTicket = async (payload, userId = null) => {
           userId: admin._id,
           title: 'New support ticket',
           message: `${payload.name} · ${payload.topic}: ${payload.message.slice(0, 120)}`,
-          type: 'system',
+          type: 'support',
           link: '/dashboard/support',
           email: false,
         })
@@ -104,7 +104,7 @@ const updateTicket = async (id, { status, adminReply }, adminId) => {
           userId: ticket.userId,
           title: 'Support reply',
           message: adminReply.slice(0, 160),
-          type: 'system',
+          type: 'support',
           link: '/support',
           email: false,
         });

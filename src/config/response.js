@@ -1,3 +1,5 @@
+const { normalizeImagesDeep } = require('../utils/uploadToCloudinary');
+
 const response = (response = {}) => {
   const responseObject = {
     code: response.statusCode,
@@ -10,7 +12,11 @@ const response = (response = {}) => {
   }
 
   if (response.data) {
-    responseObject.data.attributes = response.data;
+    const raw =
+      typeof response.data.toJSON === 'function' ? response.data.toJSON() : response.data;
+    const payload = JSON.parse(JSON.stringify(raw));
+    normalizeImagesDeep(payload);
+    responseObject.data.attributes = payload;
   }
 
   if (response.token) {

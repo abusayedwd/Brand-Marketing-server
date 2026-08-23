@@ -126,6 +126,19 @@ const fulfillCampaignPayment = async (session) => {
       await createTransactionForCampaign(campaign, session);
     }
 
+    try {
+      const { createNotification } = require('./notification.service');
+      await createNotification({
+        userId: campaign.brandId,
+        title: 'Campaign payment successful',
+        message: `Payment for ${campaign.campaignName} is complete. Your campaign is now open.`,
+        type: 'payment',
+        link: `/dashboard/campaigns/details?id=${campaign._id}`,
+        meta: { campaignId: campaign._id },
+        email: true,
+      });
+    } catch (_) {}
+
     return { campaign, source: 'pending' };
   }
 
@@ -166,6 +179,19 @@ const fulfillCampaignPayment = async (session) => {
   if (!existingTransaction) {
     await createTransactionForCampaign(campaign, session);
   }
+
+  try {
+    const { createNotification } = require('./notification.service');
+    await createNotification({
+      userId: campaign.brandId,
+      title: 'Campaign payment successful',
+      message: `Payment for ${campaign.campaignName} is complete. Your campaign is now open.`,
+      type: 'payment',
+      link: `/dashboard/campaigns/details?id=${campaign._id}`,
+      meta: { campaignId: campaign._id },
+      email: true,
+    });
+  } catch (_) {}
 
   return { campaign, source: 'metadata' };
 };

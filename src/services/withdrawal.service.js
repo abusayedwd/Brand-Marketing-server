@@ -31,6 +31,22 @@ const requestWithdrawal = async (influencerId, amount, bankDetails, reason) => {
   });
   await withdrawalRequest.save();
 
+  try {
+    const admins = await User.find({ role: 'admin', isDeleted: { $ne: true } }).select('_id');
+    await Promise.all(
+      admins.map((admin) =>
+        createNotification({
+          userId: admin._id,
+          title: 'New withdrawal request',
+          message: `${influencer.fullName || 'A creator'} requested $${amount}.`,
+          type: 'withdraw',
+          link: '/dashboard/withdraw-request',
+          meta: { withdrawalId: withdrawalRequest._id, amount },
+        })
+      )
+    );
+  } catch (_) {}
+
   return withdrawalRequest;
 };
 

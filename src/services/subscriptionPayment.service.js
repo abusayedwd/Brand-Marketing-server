@@ -59,6 +59,19 @@ const fulfillSubscriptionPayment = async (session) => {
     throw new Error(`User not found for ID: ${userId}`);
   }
 
+  try {
+    const { createNotification } = require('./notification.service');
+    await createNotification({
+      userId,
+      title: 'Subscription activated',
+      message: `Your ${planName} plan is now active.`,
+      type: 'payment',
+      link: '/pricing',
+      meta: { planName, subscriptionId: updatedSubscription._id },
+      email: true,
+    });
+  } catch (_) {}
+
   return {
     subscription: updatedSubscription,
     user: updatedUser,

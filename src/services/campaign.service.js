@@ -252,6 +252,20 @@ const showInterest = async (campaignId, influencerId) => {
     syncCampaignStatus(campaign);
     await campaign.save();
 
+    try {
+      const { createNotification } = require('./notification.service');
+      const influencer = await User.findById(influencerId).select('fullName userName');
+      const name = influencer?.fullName || influencer?.userName || 'A creator';
+      await createNotification({
+        userId: campaign.brandId,
+        title: 'New campaign interest',
+        message: `${name} showed interest in ${campaign.campaignName}.`,
+        type: 'campaign',
+        link: `/dashboard/campaigns/details?id=${campaignId}`,
+        meta: { campaignId, influencerId },
+      });
+    } catch (_) {}
+
     return campaign;
   } catch (error) {
     throw new Error(error.message || ' showing interest in campaign');
@@ -286,6 +300,19 @@ const acceptInfluencer = async (campaignId, influencerId) => {
     syncCampaignStatus(campaign);
     await campaign.save();
 
+    try {
+      const { createNotification } = require('./notification.service');
+      await createNotification({
+        userId: influencerId,
+        title: 'You were accepted',
+        message: `You were accepted for ${campaign.campaignName}. You can now submit your draft.`,
+        type: 'campaign',
+        link: `/dashboard/campaigns/details?id=${campaignId}`,
+        meta: { campaignId },
+        email: true,
+      });
+    } catch (_) {}
+
     return campaign;
   
 };
@@ -308,6 +335,18 @@ const denyInfluencer = async (campaignId, influencerId) => {
 
     syncCampaignStatus(campaign);
     await campaign.save();
+
+    try {
+      const { createNotification } = require('./notification.service');
+      await createNotification({
+        userId: influencerId,
+        title: 'Interest not selected',
+        message: `Your interest for ${campaign.campaignName} was not accepted this time.`,
+        type: 'campaign',
+        link: `/dashboard/campaigns`,
+        meta: { campaignId },
+      });
+    } catch (_) {}
 
     return campaign;
   } catch (error) {

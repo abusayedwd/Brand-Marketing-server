@@ -4,7 +4,8 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
-const { toJSON, paginate } = require("./plugins");
+const { toJSON, paginate, cloudinaryImage } = require("./plugins");
+const { DEFAULT_IMAGE_URL } = require("../utils/uploadToCloudinary");
 const { roles } = require("../config/roles");
 
 const userSchema = mongoose.Schema(
@@ -37,11 +38,8 @@ const userSchema = mongoose.Schema(
       trim: true,
     },
     image: {
-      type: Object,
-      default: {
-        url: "https://res.cloudinary.com/demo/image/upload/w_200,h_200,c_fill,g_face/sample.jpg",
-        path: "demo/sample",
-      },
+      type: mongoose.Schema.Types.Mixed,
+      default: DEFAULT_IMAGE_URL,
     },
     password: {
       type: String,
@@ -184,6 +182,7 @@ socialMedia: [
 // add plugins that convert mongoose to json and add paginate functionality
 userSchema.plugin(toJSON);
 userSchema.plugin(paginate);
+userSchema.plugin(cloudinaryImage);
 
 // Static method to check if email is taken
 userSchema.statics.isEmailTaken = async function (email, excludeUserId) {

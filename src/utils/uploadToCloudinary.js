@@ -3,11 +3,13 @@ const config = require('../config/config');
 const ApiError = require('./ApiError');
 const httpStatus = require('http-status');
 
+const DEFAULT_IMAGE_URL =
+  'https://res.cloudinary.com/demo/image/upload/w_400,h_400,c_fill,g_face/sample.jpg';
+
+const isHttpUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
+
 /**
- * Upload a multer memory file buffer to Cloudinary.
- * @param {Express.Multer.File} file
- * @param {string} folder
- * @returns {Promise<{ url: string, path: string, public_id: string }>}
+ * Upload a multer memory file buffer to Cloudinary and return the public https link.
  */
 const uploadBufferToCloudinary = (file, folder = 'brivio') => {
   if (!config.cloudinary.cloudName || !config.cloudinary.apiKey || !config.cloudinary.apiSecret) {
@@ -26,7 +28,7 @@ const uploadBufferToCloudinary = (file, folder = 'brivio') => {
       {
         folder,
         resource_type: 'image',
-        overwrite: false,
+        overwrite: true,
       },
       (err, result) => {
         if (err) {
@@ -45,26 +47,73 @@ const uploadBufferToCloudinary = (file, folder = 'brivio') => {
   });
 };
 
-/** Build image object for Mongo from uploaded file (after cloudinary middleware). */
+/** Public Cloudinary URL string from an uploaded file. */
 const imageFromUpload = (file) => {
   if (!file) return null;
-  if (file.cloudinaryUrl) {
-    return {
-      url: file.cloudinaryUrl,
-      path: file.public_id || '',
-    };
+  if (!file.cloudinaryUrl) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Image was not uploaded to Cloudinary. Check CLOUDINARY_* env vars.'
+    );
   }
-  // Legacy local fallback (should not happen once Cloudinary is configured)
-  if (file.filename) {
-    return {
-      url: `/uploads/users/${file.filename}`,
-      path: file.path || '',
-    };
+  return file.cloudinaryUrl;
+};
+
+/** Always a https URL string. Accepts old { url, path } docs. */
+const toImageUrl = (image, fallback = DEFAULT_IMAGE_URL) => {
+  if (!image) return fallback;
+  if (typeof image === 'string') {
+    return isHttpUrl(image) ? image : fallback;
   }
-  return null;
+  const url = image.url || '';
+  return isHttpUrl(url) ? url : fallback;
+};
+
+/** Walk API payloads so every `image` field is a Cloudinary URL string. */
+const normalizeImagesDeep = (value) => {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    value.forEach(normalizeImagesDeep);
+    return value;
+  }
+  if (Object.prototype.hasOwnProperty.call(value, 'image')) {
+    value.image = toImageUrl(value.image, value.image ? DEFAULT_IMAGE_URL : '');
+  }
+  Object.keys(value).forEach((key) => {
+    if (key !== 'image' && value[key] && typeof value[key] === 'object') {
+      normalizeImagesDeep(value[key]);
+    }
+  });
+  return value;
+};
+
+/**
+ * Save the new Cloudinary link on req.body.image (string).
+ * Next update replaces the previous URL.
+ */
+const applyUploadedImage = (req) => {
+  const image = imageFromUpload(req.file);
+  if (image) {
+    req.body.image = image;
+    return image;
+  }
+  const incoming = req.body?.image;
+  const incomingUrl = typeof incoming === 'object' ? incoming?.url : incoming;
+  if (incoming !== undefined && !isHttpUrl(incomingUrl)) {
+    delete req.body.image;
+  } else if (isHttpUrl(incomingUrl) && typeof incoming === 'object') {
+    req.body.image = incomingUrl;
+    return incomingUrl;
+  }
+  return isHttpUrl(incomingUrl) ? incomingUrl : null;
 };
 
 module.exports = {
+  DEFAULT_IMAGE_URL,
+  isHttpUrl,
   uploadBufferToCloudinary,
   imageFromUpload,
+  toImageUrl,
+  normalizeImagesDeep,
+  applyUploadedImage,
 };

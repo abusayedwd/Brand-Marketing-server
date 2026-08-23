@@ -134,14 +134,10 @@ const getUser = catchAsync(async (req, res) => {
 // });
 
 
-const { imageFromUpload } = require('../utils/uploadToCloudinary');
+const { applyUploadedImage } = require('../utils/uploadToCloudinary');
 
 const updateUser = catchAsync(async (req, res) => {
-  // Handle uploaded image (Cloudinary)
-  const image = imageFromUpload(req.file);
-  if (image) {
-    req.body.image = image;
-  }
+  applyUploadedImage(req);
 
   // Parse socialMedia if stringified JSON (form-data)
   if (req.body.socialMedia && typeof req.body.socialMedia === 'string') {
