@@ -244,8 +244,20 @@ const showInterest = async (campaignId, influencerId) => {
       throw new Error('Campaign not found');
     }
 
+    if (['pending', 'completed', 'cancelled'].includes(campaign.status)) {
+      throw new Error('This campaign is not open for interest right now');
+    }
+
+    if ((campaign.acceptedInfluencers?.length || 0) >= campaign.influencerCount) {
+      throw new Error('This campaign has already filled all influencer slots');
+    }
+
     if (hasObjectId(campaign.interestedInfluencers, influencerId)) {
       throw new Error('Influencer already showed interest');
+    }
+
+    if (hasObjectId(campaign.acceptedInfluencers, influencerId)) {
+      throw new Error('You are already accepted for this campaign');
     }
 
     campaign.interestedInfluencers.push(influencerId);
@@ -379,10 +391,22 @@ const denyInfluencer = async (campaignId, influencerId) => {
    
 // };
 
+/**
+ * A campaign is still "recruiting" (open for new influencers to discover and
+ * show interest in) as long as it hasn't wrapped up its lifecycle AND it still
+ * has open influencer slots — not just while status is literally 'upComming'.
+ * Status flips to 'active' as soon as the FIRST influencer is accepted, but
+ * that shouldn't hide the campaign from everyone else while slots remain.
+ */
+const recruitingCampaignQuery = () => ({
+  status: { $in: ['upComming', 'active'] },
+  $expr: { $lt: [{ $size: { $ifNull: ['$acceptedInfluencers', []] } }, '$influencerCount'] },
+});
+
 /** Public home listing — recruiting campaigns only, limited brand fields */
 const getOpenCampaigns = async (options = {}) => {
   return Campaign.paginate(
-    { status: 'upComming' },
+    recruitingCampaignQuery(),
     {
       ...options,
       sortBy: options.sortBy || 'createdAt:desc',
@@ -392,7 +416,7 @@ const getOpenCampaigns = async (options = {}) => {
 };
 
 const getUpcomingCampaignsForInfluecer = async (filter, option) => {
-  const query = { status: 'upComming' }; // Start with filtering 'upComming' status
+  const query = recruitingCampaignQuery(); // Still-recruiting campaigns (open slots), not just 'upComming'
 
   // Apply additional filters dynamically
   for (const key of Object.keys(filter)) {

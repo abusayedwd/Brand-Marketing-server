@@ -100,6 +100,13 @@ const createCampaign = catchAsync(async (req, res) => {
   const { budget, campaignName, description, endDate, influencerCount, selectedPlatforms, startDate, totalAmount } = req.body; // Include imageUrl
   const brandId = req.user.id;
 
+  if (!req.user.isSubscribe) {
+    throw new ApiError(
+      httpStatus.PAYMENT_REQUIRED,
+      "An active subscription is required to create a campaign. Please subscribe to a plan first."
+    );
+  }
+
   const image = applyUploadedImage(req);
   if (!image) {
     return res.status(400).json({ message: "Image file is required" });
@@ -260,6 +267,13 @@ const verifyCampaignPayment = catchAsync(async (req, res) => {
 
 const resumeCampaignPayment = catchAsync(async (req, res) => {
   const { campaignId } = req.params;
+
+  if (!req.user.isSubscribe) {
+    throw new ApiError(
+      httpStatus.PAYMENT_REQUIRED,
+      "An active subscription is required to create a campaign. Please subscribe to a plan first."
+    );
+  }
 
   const campaign = await Campaign.findOne({
     _id: campaignId,
