@@ -11,3 +11,4 @@ module.exports.subscriptionPlanService = require('./subscriptionPlan.service');
 module.exports.favoriteService = require('./favorite.service');
 module.exports.ratingService = require('./rating.service');
 module.exports.supportService = require('./support.service');
+module.exports.chatService = require('./chat.service');

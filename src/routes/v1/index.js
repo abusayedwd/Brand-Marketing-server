@@ -14,6 +14,8 @@ const planRoute = require("./plan.route");
 const favoriteRoute = require("./favorite.route");
 const ratingRoute = require("./rating.route");
 const supportRoute = require("./support.route");
+const chatRoute = require("./chat.route");
+const messageRoute = require("./message.route");
 
 
 const router = express.Router();
@@ -70,6 +72,14 @@ const defaultRoutes = [
   {
     path: "/support",
     route: supportRoute,
+  },
+  {
+    path: "/chating",
+    route: chatRoute,
+  },
+  {
+    path: "/messages",
+    route: messageRoute,
   },
 ];
 

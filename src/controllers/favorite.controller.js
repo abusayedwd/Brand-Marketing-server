@@ -17,4 +17,11 @@ const listFavorites = catchAsync(async (req, res) => {
   );
 });
 
-module.exports = { toggleFavorite, listFavorites };
+const favoriteStatus = catchAsync(async (req, res) => {
+  const data = await favoriteService.isFavorited(req.user.id, req.params.influencerId);
+  res.status(httpStatus.OK).json(
+    response({ message: 'Favorite status', statusCode: httpStatus.OK, data })
+  );
+});
+
+module.exports = { toggleFavorite, listFavorites, favoriteStatus };

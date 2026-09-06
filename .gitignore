@@ -24,10 +24,4 @@ Thumbs.db
 .vscode/
 .claude/
 
-# Local upload artifacts (Cloudinary is used for media)
-public/uploads/**/*
-!public/uploads/**/.gitkeep
-config.bat
-branch_structure.json
-temp_auto_push.bat
-temp_interactive_push.bat
+

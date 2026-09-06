@@ -17,6 +17,7 @@ const response = require("../config/response");
 const ApiError = require("../utils/ApiError");
 const { default: mongoose } = require("mongoose");
 
+
 const createPlanPayment = catchAsync(async (req, res) => {
   const { planName, price, duration } = req.body;
   console.log(req.body, "Request body for plan payment");
@@ -238,7 +239,7 @@ const stripeWebhook = async (req, res) => {
     }
 
     event = stripe.webhooks.constructEvent(getStripeRawBody(req), sig, endpointSecret);
-    console.log("Webhook verified.");
+    console.log("Webhook verified.>>>>>subsssssssss:", event);
 
     const data = event.data.object;
     const eventType = event.type;
@@ -264,6 +265,7 @@ const stripeWebhook = async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 };
+
 
 const verifySubscriptionPayment = catchAsync(async (req, res) => {
   const { sessionId } = req.body;

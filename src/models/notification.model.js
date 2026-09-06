@@ -22,6 +22,7 @@ const notificationSchema = new mongoose.Schema(
         'moderation',
         'support',
         'system',
+        'message',
       ],
       default: 'general',
     },

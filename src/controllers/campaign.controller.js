@@ -96,6 +96,7 @@ const stripeSessionRetrieveOptions = { expand: ['payment_intent'] };
 
 const { applyUploadedImage } = require('../utils/uploadToCloudinary');
 
+
 const createCampaign = catchAsync(async (req, res) => {
   const { budget, campaignName, description, endDate, influencerCount, selectedPlatforms, startDate, totalAmount } = req.body; // Include imageUrl
   const brandId = req.user.id;
@@ -194,7 +195,7 @@ const stripeCampaignWebhook = async (req, res) => {
     }
 
     event = stripe.webhooks.constructEvent(getStripeRawBody(req), sig, endpointSecret);
-    console.log("Webhook verified.");
+    console.log("Webhook verified.,>>>>>>>>>:", event);
 
     const data = event.data.object;
     const eventType = event.type;

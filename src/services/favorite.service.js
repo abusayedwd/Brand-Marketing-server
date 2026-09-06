@@ -1,8 +1,13 @@
 const Favorite = require('../models/favorite.model');
+const { User } = require('../models');
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 
 const toggleFavorite = async (brandId, influencerId) => {
+  const influencer = await User.findById(influencerId).select('role');
+  if (!influencer || !['influencer', 'content creator'].includes(influencer.role)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'You can only save a creator');
+  }
   const existing = await Favorite.findOne({ brandId, influencerId });
   if (existing) {
     await existing.deleteOne();

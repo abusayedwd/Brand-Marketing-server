@@ -15,7 +15,25 @@ const socketIO = (io) => {
       if (typeof callback === "function") callback("ok");
     });
 
-    // Chat rooms (existing messaging)
+    socket.on("user_connected", (userId) => {
+      if (userId) socket.join(`user:${userId}`);
+    });
+
+    socket.on("join_chat", (chatId, callback) => {
+      if (chatId) {
+        socket.join(`chat:${chatId}`);
+        if (typeof callback === "function") callback("ok");
+      }
+    });
+
+    socket.on("send_message", (data) => {
+      const chatId = data?.chatId;
+      if (chatId && data?.message) {
+        io.to(`chat:${chatId}`).emit(`messages::${chatId}`, data.message);
+      }
+    });
+
+    // Chat rooms (legacy)
     socket.on("join-room", (data, callback) => {
       if (data?.roomId) {
         socket.join("room" + data.roomId);
@@ -48,5 +66,16 @@ const emitToUser = (userId, event, payload) => {
   }
 };
 
+const emitToChat = (chatId, event, payload) => {
+  try {
+    if (global.io && chatId) {
+      global.io.to(`chat:${chatId}`).emit(event, payload);
+    }
+  } catch (err) {
+    logger.warn(`Socket chat emit failed: ${err.message}`);
+  }
+};
+
 module.exports = socketIO;
 module.exports.emitToUser = emitToUser;
+module.exports.emitToChat = emitToChat;
