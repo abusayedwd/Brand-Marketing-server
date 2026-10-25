@@ -20,4 +20,11 @@ const getRatingsForUser = catchAsync(async (req, res) => {
   );
 });
 
-module.exports = { createRating, getRatingsForUser };
+const getFeaturedRatings = catchAsync(async (req, res) => {
+  const data = await ratingService.getFeaturedRatings(req.query.limit);
+  res.status(httpStatus.OK).json(
+    response({ message: 'Featured ratings', statusCode: httpStatus.OK, data })
+  );
+});
+
+module.exports = { createRating, getRatingsForUser, getFeaturedRatings };

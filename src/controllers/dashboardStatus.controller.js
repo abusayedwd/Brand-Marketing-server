@@ -481,7 +481,40 @@ const influencerEarningsChart = catchAsync(async (req, res) => {
 
 
 
+// Public, cached-friendly numbers for the marketing home page
+const publicStats = catchAsync(async (req, res) => {
+  const DraftApprove = require("../models/draft.model");
+  const activeUser = { isEmailVerified: true, isDeleted: { $ne: true }, isBanned: { $ne: true } };
+
+  const [creators, brands, completedCampaigns, paidAgg] = await Promise.all([
+    User.countDocuments({ ...activeUser, role: "influencer" }),
+    User.countDocuments({ ...activeUser, role: "brand" }),
+    Campaign.countDocuments({ status: "completed" }),
+    DraftApprove.aggregate([
+      { $match: { isApproved: true } },
+      { $group: { _id: null, total: { $sum: "$budget" }, count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  res.set("Cache-Control", "public, max-age=300");
+  res.status(200).json(
+    response({
+      status: "success",
+      statusCode: 200,
+      message: "Public stats",
+      data: {
+        creators,
+        brands,
+        completedCampaigns,
+        approvedDeliverables: paidAgg[0]?.count || 0,
+        paidToCreators: Number((paidAgg[0]?.total || 0).toFixed(2)),
+      },
+    })
+  );
+});
+
    module.exports = {
+     publicStats,
      dashboredBar,
      adminEarining,
      influencerStatus,

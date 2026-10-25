@@ -83,4 +83,15 @@ const getRatingsForUser = async (userId) => {
   return { average: Number(avg.toFixed(2)), count: ratings.length, ratings };
 };
 
-module.exports = { createRating, getRatingsForUser };
+// Recent good reviews with text, for the public home page
+const getFeaturedRatings = async (limit = 6) => {
+  const safeLimit = Math.min(Math.max(Number(limit) || 6, 1), 12);
+  return Rating.find({ rating: { $gte: 4 }, review: { $nin: ['', null] } })
+    .populate('fromUserId', 'fullName image role companyName')
+    .populate('toUserId', 'fullName role')
+    .populate('campaignId', 'campaignName')
+    .sort({ createdAt: -1 })
+    .limit(safeLimit);
+};
+
+module.exports = { createRating, getRatingsForUser, getFeaturedRatings };

@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.post('/', auth('common'), ratingController.createRating);
 // Public profile ratings (write still requires auth)
+router.get('/featured', ratingController.getFeaturedRatings);
 router.get('/user/:userId', ratingController.getRatingsForUser);
 
 module.exports = router;
