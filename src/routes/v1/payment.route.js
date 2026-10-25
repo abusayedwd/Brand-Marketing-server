@@ -11,6 +11,7 @@ router.get("/dashbord-status", auth("common"), dashboredBar);
 
 router.get("/influencer-status", auth("common"), influencerStatus);
 
+
 router.get("/getAllSubscriptions", auth("common"),subscriptionController.getAllSubscriptions);
 
 router.get('/getSubscription/:id', auth('common'), subscriptionController.getSubscriptionById);

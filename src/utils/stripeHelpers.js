@@ -4,6 +4,7 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://brand-marketing-websi
 const getStripeRawBody = (req) => req.rawBody || req.body;
 
 const toStripeMetadata = (data) =>
+  
   Object.fromEntries(
     Object.entries(data).map(([key, value]) => {
       if (value === undefined || value === null) {
