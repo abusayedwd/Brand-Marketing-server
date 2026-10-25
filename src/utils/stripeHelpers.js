@@ -1,5 +1,5 @@
 const STRIPE_PROJECT = process.env.STRIPE_PROJECT_NAME || 'brand-marketing';
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://sayed3000.sobhoy.com').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://brand-marketing-website-sigma.vercel.app').replace(/\/$/, '');
 
 const getStripeRawBody = (req) => req.rawBody || req.body;
 
