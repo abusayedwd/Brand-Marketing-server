@@ -4,9 +4,9 @@
   "description": "influencer-brand-server",
   "main": "src/main.js",
   "scripts": {
-    "start": "node src/main.js",
-    "dev": "nodemon src/main.js",
-    "build": "webpack --mode=production",
+    "start": "node init && node src/main.js",
+    "dev": "node init && nodemon src/main.js",
+    "build": "node init && webpack --mode=production",
     "seed": "node src/utils/seeder.js",
     "test": "jest --runInBand"
   },
